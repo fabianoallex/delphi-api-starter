@@ -1,0 +1,21 @@
+# Delphi compiled output
+*.dcu
+*.exe
+*.dcp
+*.bpl
+*.dres
+
+# Delphi IDE artifacts
+__history/
+__recovery/
+*.dproj.local
+*.identcache
+*.local
+*.stat
+
+# Build output directories
+Win32/
+Win64/
+
+# Submodule directories (tracked via .gitmodules)
+modules/

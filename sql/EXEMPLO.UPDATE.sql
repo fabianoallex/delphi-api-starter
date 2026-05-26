@@ -1,0 +1,6 @@
+UPDATE EXEMPLO SET
+[NOME {]
+  NOME = :NOME,
+[} NOME]
+  ID = ID
+WHERE ID = :ID
