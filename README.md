@@ -98,6 +98,8 @@ Isso gera `sql\queries.res`, que o projeto referencia via `{$R 'sql\queries.res'
 2. Compile (`Ctrl+F9`)
 3. Execute — o servidor aplica as migrations automaticamente e sobe na porta configurada
 
+O executável é gerado na **raiz do projeto** (mesma pasta do `app.ini`), garantindo que as configurações sejam lidas corretamente. Os arquivos `.dcu` intermediários vão para `Win32\Debug\` ou `Win32\Release\`.
+
 Endpoints disponíveis após subir:
 
 | URL | Descrição |
