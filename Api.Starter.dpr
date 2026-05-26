@@ -56,7 +56,7 @@ uses
 
 const
   MIGRATIONS: array[0..0] of TMigrationItem = (
-    (Version: 1; ScriptName: 'MIG.0001'; ParamReplaceProc: nil; Terminator: ';'; IsDDL: True)
+    (Version: 1; ScriptName: 'MIG.0001'; ParamReplaceProc: nil; Terminator: '^'; IsDDL: True)
   );
 
 var

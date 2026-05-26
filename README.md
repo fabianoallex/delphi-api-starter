@@ -165,6 +165,10 @@ Adicione as 4 units do domínio ao `uses` e chame `TPedidoController.RegisterRou
 
 Crie `sql/MIG.000X.sql` com o DDL da tabela e adicione à constante `MIGRATIONS` no DPR.
 
+> **Terminador**: use `^` (não `;`) para separar statements de nível superior no arquivo `.sql`. O `;` dentro de blocos `BEGIN...END` (triggers, procedures) é sintaxe Firebird e deve ser mantido. No DPR, declare `Terminator: '^'`.
+>
+> **Primeira migration**: o script `MIG.0001` deve criar a tabela `SCHEMA_MIGRATIONS` — o engine não a cria automaticamente.
+
 ---
 
 ## Estrutura do projeto
