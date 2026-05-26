@@ -38,11 +38,32 @@ cd meu-projeto
 
 ## Configuração
 
-Edite o `app.ini` com os dados do seu ambiente:
+### 1. Criar o banco de dados Firebird
+
+O arquivo `.fdb` precisa existir antes de rodar o projeto pela primeira vez. Crie-o com o `isql` (ferramenta incluída na instalação do Firebird):
+
+```bash
+"C:\Program Files\Firebird\Firebird_2_5\isql.exe" -user SYSDBA -password masterkey
+```
+
+Dentro do prompt `isql`, execute:
+
+```sql
+CREATE DATABASE 'C:\delphi-api\bd.fdb'
+  USER 'SYSDBA' PASSWORD 'masterkey'
+  DEFAULT CHARACTER SET UTF8;
+EXIT;
+```
+
+> O diretório `C:\delphi-api\` precisa existir antes. Crie-o manualmente se necessário.
+
+### 2. Configurar o app.ini
+
+Edite o `app.ini` na raiz do projeto com o caminho do banco recém-criado:
 
 ```ini
 [database]
-DB_PATH=C:\data\minha-api.fdb
+DB_PATH=C:\delphi-api\bd.fdb
 DB_USER=SYSDBA
 DB_PASSWORD=masterkey
 FB_CLIENT_DIR=C:\Program Files\Firebird\Firebird_2_5\WOW64
@@ -52,15 +73,30 @@ SERVER_PORT=9000
 BASE_URL=http://localhost:9000
 ```
 
-Todas as chaves também podem ser fornecidas como variáveis de ambiente (têm precedência sobre o `app.ini`).
+> `FB_CLIENT_DIR` aponta para a pasta que contém a `fbclient.dll` 32-bit. Em instalações 64-bit do Windows, ela fica em `WOW64\` fora do PATH — por isso o caminho explícito é necessário.
+
+Todas as chaves do `app.ini` também podem ser fornecidas como variáveis de ambiente, que têm precedência sobre o arquivo.
 
 ---
 
 ## Compilando e executando
 
+### Primeira compilação
+
+Na primeira vez, é necessário compilar o arquivo de recursos SQL manualmente antes de abrir o projeto no Delphi:
+
+```bash
+cd sql
+queries.bat
+```
+
+Isso gera `sql\queries.res`, que o projeto referencia via `{$R 'sql\queries.res'}`. Nas compilações seguintes, o Delphi IDE atualiza o `.res` automaticamente via o target `BeforeBuild` do `.dproj`.
+
+### Build e execução
+
 1. Abra `Api.Starter.dproj` no Delphi IDE
-2. Compile (`Ctrl+F9`) — o `brcc32` compila automaticamente `sql\queries.rc` antes do build
-3. Execute — o servidor sobe na porta configurada e aplica as migrations automaticamente
+2. Compile (`Ctrl+F9`)
+3. Execute — o servidor aplica as migrations automaticamente e sobe na porta configurada
 
 Endpoints disponíveis após subir:
 
