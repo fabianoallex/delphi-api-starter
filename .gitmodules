@@ -1,0 +1,6 @@
+[submodule "infra"]
+	path = infra
+	url = https://github.com/fabianoallex/delphi-api-infra-faa.git
+[submodule "modules/horse"]
+	path = modules/horse
+	url = https://github.com/HashLoad/horse.git

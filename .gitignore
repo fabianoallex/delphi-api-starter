@@ -17,5 +17,3 @@ __recovery/
 Win32/
 Win64/
 
-# Submodule directories (tracked via .gitmodules)
-modules/
