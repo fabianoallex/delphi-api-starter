@@ -62,13 +62,11 @@ EXIT;
 Edite o `app.ini` na raiz do projeto com o caminho do banco recém-criado:
 
 ```ini
-[database]
+[Config]
 DB_PATH=C:\delphi-api\bd.fdb
 DB_USER=SYSDBA
 DB_PASSWORD=masterkey
 FB_CLIENT_DIR=C:\Program Files\Firebird\Firebird_2_5\WOW64
-
-[server]
 SERVER_PORT=9000
 BASE_URL=http://localhost:9000
 ```
