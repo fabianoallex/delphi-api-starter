@@ -163,6 +163,105 @@ CREATE TABLE exemplo (
 
 ---
 
+## Usando múltiplos bancos de dados simultaneamente
+
+Quando o sistema precisar persistir em dois bancos diferentes ao mesmo tempo (ex: Firebird e PostgreSQL), a infra suporta esse cenário sem alterações — cada `IDBFactory` carrega seus próprios SQLs de um namespace independente.
+
+### Estrutura de SQL
+
+Organize os arquivos em subpastas por banco. Os nomes de arquivo são idênticos; apenas o conteúdo difere:
+
+```
+sql/
+  fb/
+    fb.rc           — SQL_FB_MIG_0001, SQL_FB_EXEMPLO_FIND ...
+    fb.bat          — brcc32 fb.rc -fo fb.res
+    MIG.0001.sql    — DDL Firebird
+    EXEMPLO.FIND.sql
+    ...
+  pg/
+    pg.rc           — SQL_PG_MIG_0001, SQL_PG_EXEMPLO_FIND ...
+    pg.bat          — brcc32 pg.rc -fo pg.res
+    MIG.0001.sql    — DDL PostgreSQL
+    EXEMPLO.FIND.sql
+    ...
+```
+
+Exemplo de `sql/fb/fb.rc`:
+
+```
+SQL_FB_MIG_0001           RCDATA "MIG.0001.sql"
+SQL_FB_EXEMPLO_FIND       RCDATA "EXEMPLO.FIND.sql"
+SQL_FB_EXEMPLO_FIND_COUNT RCDATA "EXEMPLO.FIND_COUNT.sql"
+...
+```
+
+O prefixo (`FB` / `PG`) é definido pelo campo `SQLDirectory` de cada `TFDConfig` e vira o segmento do meio no nome do resource (`SQL_<DIRECTORY>_<NOME>`).
+
+### DPR — dois resources, dois factories, duas migrations
+
+```pascal
+{$R 'sql\fb\fb.res'}
+{$R 'sql\pg\pg.res'}
+
+const
+  MIGRATIONS_FB: array[0..0] of TMigrationItem = (
+    (Version: 1; ScriptName: 'MIG.0001'; ParamReplaceProc: nil; Terminator: '^'; IsDDL: True)
+  );
+  MIGRATIONS_PG: array[0..0] of TMigrationItem = (
+    (Version: 1; ScriptName: 'MIG.0001'; ParamReplaceProc: nil; Terminator: ';'; IsDDL: True)
+  );
+
+// Factory Firebird
+LConfigFB := TFDConfig.Create;
+LConfigFB.ConnectionParams.Add('DriverID=FB');
+LConfigFB.ConnectionParams.Add('Database=' + TAppConfig.Get('FB_DB_PATH', ''));
+...
+LConfigFB.SQLDialect   := 'Firebird';
+LConfigFB.SQLDirectory := 'FB';
+LFactoryFB := TFDFactory.Create(LConfigFB, nil);
+
+// Factory PostgreSQL
+LConfigPG := TFDConfig.Create;
+LConfigPG.ConnectionParams.Add('DriverID=PG');
+LConfigPG.ConnectionParams.Add('Server=' + TAppConfig.Get('PG_HOST', 'localhost'));
+...
+LConfigPG.SQLDialect   := 'PostgreSQL';
+LConfigPG.SQLDirectory := 'PG';
+LFactoryPG := TFDFactory.Create(LConfigPG, nil);
+
+// Migrations independentes — cada engine usa o loader da sua factory
+LEngine := TDBMigrationEngine.Create(LFactoryFB);
+LEngine.Execute(MIGRATIONS_FB);
+LEngine.Free;
+
+LEngine := TDBMigrationEngine.Create(LFactoryPG);
+LEngine.Execute(MIGRATIONS_PG);
+LEngine.Free;
+```
+
+### Domínios por banco
+
+Cada Repository recebe a factory correta na construção; nada muda nas camadas de domínio:
+
+```pascal
+LServiceFB := TExemploService.Create(TExemploRepository.Create(LFactoryFB));
+LServicePG := TExemploService.Create(TExemploRepository.Create(LFactoryPG));
+```
+
+### BeforeBuild no dproj
+
+Compile os dois `.rc` no target `BeforeBuild`:
+
+```xml
+<Target Name="BeforeBuild">
+  <Exec Command="brcc32.exe &quot;$(MSBuildProjectDirectory)\sql\fb\fb.rc&quot; -fo &quot;$(MSBuildProjectDirectory)\sql\fb\fb.res&quot;"/>
+  <Exec Command="brcc32.exe &quot;$(MSBuildProjectDirectory)\sql\pg\pg.rc&quot; -fo &quot;$(MSBuildProjectDirectory)\sql\pg\pg.res&quot;"/>
+</Target>
+```
+
+---
+
 ## Compilando e executando
 
 ### Primeira compilação

@@ -1,0 +1,164 @@
+# delphi-api-starter — Guia para Agentes de IA
+
+Template de projeto para APIs REST em Delphi com Horse e [delphi-api-infra-faa](https://github.com/fabianoallex/delphi-api-infra-faa).
+Consulte também o `CLAUDE.md` da infra (em `infra/CLAUDE.md`) para padrões detalhados de DTOs, Repository, Service e Controller.
+
+---
+
+## Estrutura essencial
+
+```
+Api.Starter.dpr       — programa principal; registra factories, migrations, middlewares e rotas
+app.ini               — configuração de ambiente (seção [Config], todas as chaves planas)
+sql/
+  queries.rc          — registra os arquivos SQL como resources (prefixo SQL_QUERIES_)
+  queries.bat         — compila queries.rc → queries.res
+  MIG.0001.sql        — primeira migration (deve criar SCHEMA_MIGRATIONS)
+  EXEMPLO.*.sql       — queries do domínio Exemplo
+src/Domain/Exemplo/   — domínio de referência: DTOs, Repository, Service, Controller
+infra/                — submodule delphi-api-infra-faa
+modules/horse/        — submodule Horse
+```
+
+---
+
+## Como os SQLs são carregados
+
+Os arquivos `.sql` são compilados em recursos binários (`queries.res`) e embutidos no executável.
+O nome do resource segue o padrão:
+
+```
+SQL_<SQLDirectory>_<NomeDoArquivo_pontos_viram_underscores>
+```
+
+Exemplo: `SQLDirectory = 'QUERIES'` + chave `'EXEMPLO.FIND'` → resource `SQL_QUERIES_EXEMPLO_FIND`.
+
+O `SQLDirectory` é configurado em `TFDConfig.SQLDirectory` no DPR. Cada factory tem o seu próprio loader e portanto o seu próprio namespace.
+
+---
+
+## Adicionando um domínio
+
+1. Criar `src/Domain/<Nome>/` com os 4 arquivos Pascal (DTOs, Repository, Service, Controller)
+2. Criar os arquivos SQL em `sql/` (FIND, FIND_COUNT, FIND_BY_ID, INSERT, UPDATE, DELETE)
+3. Registrar cada SQL em `sql/queries.rc` seguindo o padrão `SQL_QUERIES_<NOME>`
+4. Recompilar: `cd sql && queries.bat`
+5. Adicionar as 4 units ao `uses` do DPR e chamar `RegisterRoutes` no `begin`
+6. Criar `sql/MIG.000X.sql` e adicionar à constante `MIGRATIONS` no DPR
+
+---
+
+## Migrations
+
+- O script `MIG.0001` **deve** criar a tabela `SCHEMA_MIGRATIONS` — o engine não a cria automaticamente
+- Use `^` como terminador de nível superior em scripts Firebird (evita cortar `BEGIN...END` no `;` interno); declare `Terminator: '^'` no DPR
+- Use `';'` para PostgreSQL (DDL é transacional; não precisa de terminador alternativo)
+- Todos os scripts de migration devem ter `IsDDL: True` para DDL
+
+---
+
+## app.ini
+
+Todas as chaves ficam na seção `[Config]` — o `TAppConfig` lê apenas essa seção:
+
+```ini
+[Config]
+DB_PATH=C:\delphi-api\bd.fdb
+DB_USER=SYSDBA
+DB_PASSWORD=masterkey
+FB_CLIENT_DIR=C:\Program Files\Firebird\Firebird_2_5\WOW64
+SERVER_PORT=9000
+BASE_URL=http://localhost:9000
+```
+
+Seções como `[database]` ou `[server]` **não são lidas**. Variáveis de ambiente têm precedência sobre o arquivo.
+
+---
+
+## Múltiplos bancos de dados simultaneamente
+
+Quando o sistema precisa conectar a dois bancos diferentes (ex: Firebird + PostgreSQL), use dois namespaces de SQL independentes:
+
+### Estrutura de arquivos
+
+```
+sql/
+  fb/
+    fb.rc        — SQL_FB_MIG_0001, SQL_FB_EXEMPLO_FIND ...
+    fb.bat
+    MIG.0001.sql — DDL Firebird
+    EXEMPLO.FIND.sql
+    ...
+  pg/
+    pg.rc        — SQL_PG_MIG_0001, SQL_PG_EXEMPLO_FIND ...
+    pg.bat
+    MIG.0001.sql — DDL PostgreSQL
+    EXEMPLO.FIND.sql
+    ...
+```
+
+### DPR
+
+```pascal
+{$R 'sql\fb\fb.res'}
+{$R 'sql\pg\pg.res'}
+
+// Factory Firebird
+LConfigFB.SQLDirectory := 'FB';   // → resources SQL_FB_*
+LConfigFB.SQLDialect   := 'Firebird';
+LFactoryFB := TFDFactory.Create(LConfigFB, nil);
+
+// Factory PostgreSQL
+LConfigPG.SQLDirectory := 'PG';   // → resources SQL_PG_*
+LConfigPG.SQLDialect   := 'PostgreSQL';
+LFactoryPG := TFDFactory.Create(LConfigPG, nil);
+
+// Migrations: cada engine usa o loader da sua factory
+LEngine := TDBMigrationEngine.Create(LFactoryFB);
+LEngine.Execute(MIGRATIONS_FB);   // Terminator '^'
+LEngine.Free;
+
+LEngine := TDBMigrationEngine.Create(LFactoryPG);
+LEngine.Execute(MIGRATIONS_PG);   // Terminator ';'
+LEngine.Free;
+```
+
+### Domínios
+
+Cada Repository recebe a factory correta — nada muda nas camadas de domínio:
+
+```pascal
+LServiceFB := TExemploService.Create(TExemploRepository.Create(LFactoryFB));
+LServicePG := TExemploService.Create(TExemploRepository.Create(LFactoryPG));
+```
+
+### BeforeBuild no dproj
+
+```xml
+<Target Name="BeforeBuild">
+  <Exec Command="brcc32.exe &quot;$(MSBuildProjectDirectory)\sql\fb\fb.rc&quot; -fo &quot;$(MSBuildProjectDirectory)\sql\fb\fb.res&quot;"/>
+  <Exec Command="brcc32.exe &quot;$(MSBuildProjectDirectory)\sql\pg\pg.rc&quot; -fo &quot;$(MSBuildProjectDirectory)\sql\pg\pg.res&quot;"/>
+</Target>
+```
+
+---
+
+## Diferenças SQL por banco
+
+| Recurso | Firebird | PostgreSQL |
+|---|---|---|
+| Paginação | `SELECT FIRST ${LIMIT} SKIP ${OFFSET} ...` | `SELECT ... LIMIT ${LIMIT} OFFSET ${OFFSET}` |
+| Auto-incremento | `CREATE GENERATOR` + trigger | `GENERATED BY DEFAULT AS IDENTITY` |
+| Terminador migration | `^` | `;` |
+| Driver FireDAC | `FireDAC.Phys.FB` | `FireDAC.Phys.PG` |
+| `INSERT RETURNING` | suportado | suportado |
+
+---
+
+## Anti-padrões a evitar
+
+- Colocar chaves do `app.ini` fora da seção `[Config]` — não serão lidas
+- Usar `';'` como terminador de migration Firebird com triggers — corta o `BEGIN...END` no `;` interno
+- Omitir `SCHEMA_MIGRATIONS` no `MIG.0001` — o engine não a cria; `InsertVersionRecord` falha
+- Registrar `{$R}` de apenas um banco ao usar múltiplos — o outro não terá resources
+- Usar um único namespace de SQL (`QUERIES`) para dois bancos — resources de mesmo nome colidem
