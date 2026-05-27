@@ -75,70 +75,68 @@ Seções como `[database]` ou `[server]` **não são lidas**. Variáveis de ambi
 
 ---
 
-## Múltiplos bancos de dados simultaneamente
+## Suporte a múltiplos bancos por configuração
 
-Quando o sistema precisa conectar a dois bancos diferentes (ex: Firebird + PostgreSQL), use dois namespaces de SQL independentes:
+O mesmo executável pode ser implantado com Firebird ou PostgreSQL — o banco ativo é determinado pela chave `DB_DIALECT` no `app.ini`. Nenhum código de domínio muda; apenas o DPR lê o dialeto e monta a factory correta.
 
-### Estrutura de arquivos
+### Estrutura de arquivos SQL
 
 ```
 sql/
   fb/
     fb.rc        — SQL_FB_MIG_0001, SQL_FB_EXEMPLO_FIND ...
     fb.bat
-    MIG.0001.sql — DDL Firebird
+    MIG.0001.sql — DDL Firebird (terminador ^)
     EXEMPLO.FIND.sql
     ...
   pg/
     pg.rc        — SQL_PG_MIG_0001, SQL_PG_EXEMPLO_FIND ...
     pg.bat
-    MIG.0001.sql — DDL PostgreSQL
+    MIG.0001.sql — DDL PostgreSQL (terminador ;)
     EXEMPLO.FIND.sql
     ...
 ```
 
-### DPR
+Ambos os `.res` são embutidos no executável via `{$R}`; em runtime, apenas os resources do dialeto configurado são acessados.
+
+### DPR — factory única, seleção em runtime
 
 ```pascal
 {$R 'sql\fb\fb.res'}
 {$R 'sql\pg\pg.res'}
 
-// Factory Firebird
-LConfigFB.SQLDirectory := 'FB';   // → resources SQL_FB_*
-LConfigFB.SQLDialect   := 'Firebird';
-LFactoryFB := TFDFactory.Create(LConfigFB, nil);
+// Inclua os dois drivers para que o FireDAC os registre
+uses FireDAC.Phys.FB, FireDAC.Phys.PG, ...
 
-// Factory PostgreSQL
-LConfigPG.SQLDirectory := 'PG';   // → resources SQL_PG_*
-LConfigPG.SQLDialect   := 'PostgreSQL';
-LFactoryPG := TFDFactory.Create(LConfigPG, nil);
+LDialect := TAppConfig.Get('DB_DIALECT', 'Firebird');
 
-// Migrations: cada engine usa o loader da sua factory
-LEngine := TDBMigrationEngine.Create(LFactoryFB);
-LEngine.Execute(MIGRATIONS_FB);   // Terminator '^'
+if SameText(LDialect, 'PostgreSQL') then
+begin
+  LConfig.ConnectionParams.Add('DriverID=PG');
+  ...
+  LConfig.SQLDialect   := 'PostgreSQL';
+  LConfig.SQLDirectory := 'PG';   // → resources SQL_PG_*
+end
+else
+begin
+  LConfig.ConnectionParams.Add('DriverID=FB');
+  ...
+  LConfig.SQLDialect   := 'Firebird';
+  LConfig.SQLDirectory := 'FB';   // → resources SQL_FB_*
+end;
+
+LFactory := TFDFactory.Create(LConfig, nil);
+
+// Migration do dialeto ativo
+LEngine := TDBMigrationEngine.Create(LFactory);
+if SameText(LDialect, 'PostgreSQL') then
+  LEngine.Execute(MIGRATIONS_PG)   // Terminator ';'
+else
+  LEngine.Execute(MIGRATIONS_FB);  // Terminator '^'
 LEngine.Free;
 
-LEngine := TDBMigrationEngine.Create(LFactoryPG);
-LEngine.Execute(MIGRATIONS_PG);   // Terminator ';'
-LEngine.Free;
-```
-
-### Domínios
-
-Cada Repository recebe a factory correta — nada muda nas camadas de domínio:
-
-```pascal
-LServiceFB := TExemploService.Create(TExemploRepository.Create(LFactoryFB));
-LServicePG := TExemploService.Create(TExemploRepository.Create(LFactoryPG));
-```
-
-### BeforeBuild no dproj
-
-```xml
-<Target Name="BeforeBuild">
-  <Exec Command="brcc32.exe &quot;$(MSBuildProjectDirectory)\sql\fb\fb.rc&quot; -fo &quot;$(MSBuildProjectDirectory)\sql\fb\fb.res&quot;"/>
-  <Exec Command="brcc32.exe &quot;$(MSBuildProjectDirectory)\sql\pg\pg.rc&quot; -fo &quot;$(MSBuildProjectDirectory)\sql\pg\pg.res&quot;"/>
-</Target>
+// Domínio — nenhuma alteração
+LService := TExemploService.Create(TExemploRepository.Create(LFactory));
 ```
 
 ---

@@ -163,13 +163,13 @@ CREATE TABLE exemplo (
 
 ---
 
-## Usando múltiplos bancos de dados simultaneamente
+## Suportando múltiplos bancos de dados (por configuração)
 
-Quando o sistema precisar persistir em dois bancos diferentes ao mesmo tempo (ex: Firebird e PostgreSQL), a infra suporta esse cenário sem alterações — cada `IDBFactory` carrega seus próprios SQLs de um namespace independente.
+O mesmo executável pode ser implantado em ambientes diferentes — client A usa Firebird, client B usa PostgreSQL — bastando alterar o `app.ini`. Nenhum código de domínio muda; apenas o DPR lê o dialeto configurado e monta a factory correta.
 
 ### Estrutura de SQL
 
-Organize os arquivos em subpastas por banco. Os nomes de arquivo são idênticos; apenas o conteúdo difere:
+Organize os arquivos em subpastas por banco. Os nomes são idênticos; apenas o conteúdo difere:
 
 ```
 sql/
@@ -196,13 +196,46 @@ SQL_FB_EXEMPLO_FIND_COUNT RCDATA "EXEMPLO.FIND_COUNT.sql"
 ...
 ```
 
-O prefixo (`FB` / `PG`) é definido pelo campo `SQLDirectory` de cada `TFDConfig` e vira o segmento do meio no nome do resource (`SQL_<DIRECTORY>_<NOME>`).
+O prefixo (`FB` / `PG`) é definido pelo campo `SQLDirectory` do `TFDConfig` e vira o segmento do meio no nome do resource (`SQL_<DIRECTORY>_<NOME>`). Ambos os `.res` são embutidos no executável; em runtime, apenas os resources do dialeto configurado são acessados.
 
-### DPR — dois resources, dois factories, duas migrations
+### app.ini
+
+Adicione uma chave `DB_DIALECT` para indicar o banco:
+
+```ini
+[Config]
+DB_DIALECT=Firebird
+DB_PATH=C:\delphi-api\bd.fdb
+DB_USER=SYSDBA
+DB_PASSWORD=masterkey
+FB_CLIENT_DIR=C:\Program Files\Firebird\Firebird_2_5\WOW64
+SERVER_PORT=9000
+BASE_URL=http://localhost:9000
+```
+
+Para PostgreSQL:
+
+```ini
+[Config]
+DB_DIALECT=PostgreSQL
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=minha_api
+DB_USER=postgres
+DB_PASSWORD=postgres
+SERVER_PORT=9000
+BASE_URL=http://localhost:9000
+```
+
+### DPR — seleção em runtime
+
+Inclua os drivers de ambos os bancos e as duas constantes de migration. No `begin`, leia o dialeto e configure a factory única:
 
 ```pascal
-{$R 'sql\fb\fb.res'}
-{$R 'sql\pg\pg.res'}
+uses
+  FireDAC.Phys.FB,   // necessário para o driver ser registrado no FireDAC
+  FireDAC.Phys.PG,
+  ...
 
 const
   MIGRATIONS_FB: array[0..0] of TMigrationItem = (
@@ -212,46 +245,55 @@ const
     (Version: 1; ScriptName: 'MIG.0001'; ParamReplaceProc: nil; Terminator: ';'; IsDDL: True)
   );
 
-// Factory Firebird
-LConfigFB := TFDConfig.Create;
-LConfigFB.ConnectionParams.Add('DriverID=FB');
-LConfigFB.ConnectionParams.Add('Database=' + TAppConfig.Get('FB_DB_PATH', ''));
-...
-LConfigFB.SQLDialect   := 'Firebird';
-LConfigFB.SQLDirectory := 'FB';
-LFactoryFB := TFDFactory.Create(LConfigFB, nil);
+var
+  LDialect: string;
+  LConfig: TFDConfig;
+  LFactory: IDBFactory;
+begin
+  LDialect := TAppConfig.Get('DB_DIALECT', 'Firebird');
+  LConfig  := TFDConfig.Create;
 
-// Factory PostgreSQL
-LConfigPG := TFDConfig.Create;
-LConfigPG.ConnectionParams.Add('DriverID=PG');
-LConfigPG.ConnectionParams.Add('Server=' + TAppConfig.Get('PG_HOST', 'localhost'));
-...
-LConfigPG.SQLDialect   := 'PostgreSQL';
-LConfigPG.SQLDirectory := 'PG';
-LFactoryPG := TFDFactory.Create(LConfigPG, nil);
+  if SameText(LDialect, 'PostgreSQL') then
+  begin
+    LConfig.ConnectionParams.Add('DriverID=PG');
+    LConfig.ConnectionParams.Add('Server='   + TAppConfig.Get('DB_HOST', 'localhost'));
+    LConfig.ConnectionParams.Add('Port='     + TAppConfig.Get('DB_PORT', '5432'));
+    LConfig.ConnectionParams.Add('Database=' + TAppConfig.Get('DB_NAME', 'minha_api'));
+    LConfig.ConnectionParams.Add('User_Name='+ TAppConfig.Get('DB_USER', 'postgres'));
+    LConfig.ConnectionParams.Add('Password=' + TAppConfig.Get('DB_PASSWORD', 'postgres'));
+    LConfig.SQLDialect   := 'PostgreSQL';
+    LConfig.SQLDirectory := 'PG';
+  end
+  else
+  begin
+    SetDllDirectory(PWideChar(TAppConfig.Get('FB_CLIENT_DIR',
+      'C:\Program Files\Firebird\Firebird_2_5\WOW64')));
+    LConfig.ConnectionParams.Add('DriverID=FB');
+    LConfig.ConnectionParams.Add('Database=' + TAppConfig.Get('DB_PATH', ''));
+    LConfig.ConnectionParams.Add('User_Name='+ TAppConfig.Get('DB_USER', 'SYSDBA'));
+    LConfig.ConnectionParams.Add('Password=' + TAppConfig.Get('DB_PASSWORD', 'masterkey'));
+    LConfig.ConnectionParams.Add('CharacterSet=UTF8');
+    LConfig.SQLDialect   := 'Firebird';
+    LConfig.SQLDirectory := 'FB';
+  end;
 
-// Migrations independentes — cada engine usa o loader da sua factory
-LEngine := TDBMigrationEngine.Create(LFactoryFB);
-LEngine.Execute(MIGRATIONS_FB);
-LEngine.Free;
+  LFactory := TFDFactory.Create(LConfig, nil);
 
-LEngine := TDBMigrationEngine.Create(LFactoryPG);
-LEngine.Execute(MIGRATIONS_PG);
-LEngine.Free;
-```
+  // Migration do dialeto ativo
+  LEngine := TDBMigrationEngine.Create(LFactory);
+  if SameText(LDialect, 'PostgreSQL') then
+    LEngine.Execute(MIGRATIONS_PG)
+  else
+    LEngine.Execute(MIGRATIONS_FB);
+  LEngine.Free;
 
-### Domínios por banco
-
-Cada Repository recebe a factory correta na construção; nada muda nas camadas de domínio:
-
-```pascal
-LServiceFB := TExemploService.Create(TExemploRepository.Create(LFactoryFB));
-LServicePG := TExemploService.Create(TExemploRepository.Create(LFactoryPG));
+  // Domínio — nenhuma alteração aqui
+  LService := TExemploService.Create(TExemploRepository.Create(LFactory));
 ```
 
 ### BeforeBuild no dproj
 
-Compile os dois `.rc` no target `BeforeBuild`:
+Compile os dois `.rc`:
 
 ```xml
 <Target Name="BeforeBuild">
