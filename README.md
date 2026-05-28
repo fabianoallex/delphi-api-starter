@@ -447,12 +447,17 @@ THorse.Use(TErrorHandlerMiddleware.New);
 // THorse.Use(TCorsMiddleware.New);                            // dev: libera *
 // THorse.Use(TCorsMiddleware.New('https://app.example.com')); // produção
 
-// Autenticação Bearer — descomente e configure API_KEY no app.ini
+// Autenticação Bearer com API key — descomente e configure API_KEY no app.ini
 // THorse.Use(TAuthMiddleware.Bearer(
 //   function(const AToken: string): Boolean
 //   begin
 //     Result := AToken = TAppConfig.Get('API_KEY', '');
 //   end,
+//   ['/health', '/swagger']));
+
+// Autenticação JWT HS256 — descomente e configure JWT_SECRET no app.ini
+// THorse.Use(TJwtMiddleware.New(
+//   TAppConfig.Get('JWT_SECRET', ''),
 //   ['/health', '/swagger']));
 ```
 

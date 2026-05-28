@@ -49,6 +49,7 @@ uses
   Horse.Middleware.Logger       in 'infra\src\Middleware\Horse.Middleware.Logger.pas',
   Horse.Middleware.ErrorHandler in 'infra\src\Middleware\Horse.Middleware.ErrorHandler.pas',
   Horse.Middleware.Auth         in 'infra\src\Middleware\Horse.Middleware.Auth.pas',
+  Horse.Middleware.Jwt          in 'infra\src\Middleware\Horse.Middleware.Jwt.pas',
   Horse.Middleware.Cors         in 'infra\src\Middleware\Horse.Middleware.Cors.pas',
   Horse.Middleware.RateLimit    in 'infra\src\Middleware\Horse.Middleware.RateLimit.pas',
   Common.HealthCheck            in 'infra\src\Common\Common.HealthCheck.pas'
@@ -114,12 +115,17 @@ begin
     // THorse.Use(TCorsMiddleware.New);                          // dev: libera *
     // THorse.Use(TCorsMiddleware.New('https://app.example.com')); // produção
 
-    // Autenticação Bearer (opcional) — deve vir após o ErrorHandler
+    // Autenticação Bearer com API key (opcional) — deve vir após o ErrorHandler
     // THorse.Use(TAuthMiddleware.Bearer(
     //   function(const AToken: string): Boolean
     //   begin
     //     Result := AToken = TAppConfig.Get('API_KEY', '');
     //   end,
+    //   ['/health', '/swagger']));
+
+    // Autenticação JWT HS256 (opcional) — alternativa ao Bearer simples
+    // THorse.Use(TJwtMiddleware.New(
+    //   TAppConfig.Get('JWT_SECRET', ''),
     //   ['/health', '/swagger']));
 
     // Inicializar Swagger doc (deve vir antes de RegisterRoutes)

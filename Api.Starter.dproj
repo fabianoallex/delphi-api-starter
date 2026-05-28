@@ -124,6 +124,7 @@
         <DCCReference Include="infra\src\Middleware\Horse.Middleware.Logger.pas"/>
         <DCCReference Include="infra\src\Middleware\Horse.Middleware.ErrorHandler.pas"/>
         <DCCReference Include="infra\src\Middleware\Horse.Middleware.Auth.pas"/>
+        <DCCReference Include="infra\src\Middleware\Horse.Middleware.Jwt.pas"/>
         <DCCReference Include="infra\src\Middleware\Horse.Middleware.Cors.pas"/>
         <DCCReference Include="infra\src\Middleware\Horse.Middleware.RateLimit.pas"/>
         <DCCReference Include="infra\src\Common\Common.HealthCheck.pas"/>
