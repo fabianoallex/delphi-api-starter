@@ -1,4 +1,3 @@
-{$CODEPAGE UTF8}
 unit Exemplo.Service;
 
 interface
