@@ -459,6 +459,15 @@ THorse.Use(TErrorHandlerMiddleware.New);
 // THorse.Use(TJwtMiddleware.New(
 //   TAppConfig.Get('JWT_SECRET', ''),
 //   ['/health', '/swagger']));
+//
+// Para ler claims em um handler:
+//   var LClaims := TJwtHelper.GetClaimsFromRequest(Req, TAppConfig.Get('JWT_SECRET', ''));
+//   try
+//     if Assigned(LClaims) then
+//       LUserId := LClaims.GetValue<string>('sub');
+//   finally
+//     LClaims.Free;
+//   end;
 ```
 
 ---
