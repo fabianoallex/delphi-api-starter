@@ -9,7 +9,8 @@ Consulte também o `CLAUDE.md` da infra (em `infra/CLAUDE.md`) para padrões det
 
 ```
 Api.Starter.dpr       — programa principal; registra factories, migrations, middlewares e rotas
-app.ini               — configuração de ambiente (seção [Config], todas as chaves planas)
+.env                  — configuração de ambiente (KEY=VALUE, não versionado)
+.env.example          — template de configuração (versionado, sem segredos)
 sql/
   queries.rc          — registra os arquivos SQL como resources (prefixo SQL_QUERIES_)
   queries.bat         — compila queries.rc → queries.res
@@ -57,12 +58,11 @@ O `SQLDirectory` é configurado em `TFDConfig.SQLDirectory` no DPR. Cada factory
 
 ---
 
-## app.ini
+## .env
 
-Todas as chaves ficam na seção `[Config]` — o `TAppConfig` lê apenas essa seção:
+Formato plano `KEY=VALUE`, uma chave por linha. Linhas em branco e comentários com `#` são ignorados. Valores podem ser opcionalmente delimitados por aspas simples ou duplas.
 
-```ini
-[Config]
+```env
 DB_PATH=C:\delphi-api\bd.fdb
 DB_USER=SYSDBA
 DB_PASSWORD=masterkey
@@ -71,13 +71,15 @@ SERVER_PORT=9000
 BASE_URL=http://localhost:9000
 ```
 
-Seções como `[database]` ou `[server]` **não são lidas**. Variáveis de ambiente têm precedência sobre o arquivo.
+- O arquivo `.env` **não deve ser versionado** — está no `.gitignore`
+- Use `.env.example` como template (versionado, sem valores reais)
+- Variáveis de ambiente do sistema têm precedência sobre o arquivo
 
 ---
 
 ## Suporte a múltiplos bancos por configuração
 
-O mesmo executável pode ser implantado com Firebird ou PostgreSQL — o banco ativo é determinado pela chave `DB_DIALECT` no `app.ini`. Nenhum código de domínio muda; apenas o DPR lê o dialeto e monta a factory correta.
+O mesmo executável pode ser implantado com Firebird ou PostgreSQL — o banco ativo é determinado pela chave `DB_DIALECT` no `.env`. Nenhum código de domínio muda; apenas o DPR lê o dialeto e monta a factory correta.
 
 ### Estrutura de arquivos SQL
 
@@ -155,7 +157,7 @@ LService := TExemploService.Create(TExemploRepository.Create(LFactory));
 
 ## Anti-padrões a evitar
 
-- Colocar chaves do `app.ini` fora da seção `[Config]` — não serão lidas
+- Versionar o `.env` — ele contém segredos; use `.env.example` como template
 - Usar `';'` como terminador de migration Firebird com triggers — corta o `BEGIN...END` no `;` interno
 - Omitir `SCHEMA_MIGRATIONS` no `MIG.0001` — o engine não a cria; `InsertVersionRecord` falha
 - Registrar `{$R}` de apenas um banco ao usar múltiplos — o outro não terá resources

@@ -1,3 +1,6 @@
+# Configuração local (contém segredos — nunca versionar)
+.env
+
 # Delphi compiled output
 *.dcu
 *.exe
