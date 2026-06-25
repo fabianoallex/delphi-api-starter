@@ -57,12 +57,17 @@ EXIT;
 
 > O diretório `C:\delphi-api\` precisa existir antes. Crie-o manualmente se necessário.
 
-### 2. Configurar o app.ini
+### 2. Configurar o .env
 
-Edite o `app.ini` na raiz do projeto com o caminho do banco recém-criado:
+Copie o arquivo de exemplo e ajuste os valores ao seu ambiente:
 
-```ini
-[Config]
+```bash
+copy .env.example .env
+```
+
+Edite o `.env` com o caminho do banco recém-criado:
+
+```env
 DB_PATH=C:\delphi-api\bd.fdb
 DB_USER=SYSDBA
 DB_PASSWORD=masterkey
@@ -73,7 +78,7 @@ BASE_URL=http://localhost:9000
 
 > `FB_CLIENT_DIR` aponta para a pasta que contém a `fbclient.dll` 32-bit. Em instalações 64-bit do Windows, ela fica em `WOW64\` fora do PATH — por isso o caminho explícito é necessário.
 
-Todas as chaves do `app.ini` também podem ser fornecidas como variáveis de ambiente, que têm precedência sobre o arquivo.
+O `.env` está no `.gitignore` e nunca deve ser versionado. Use o `.env.example` (versionado, sem valores reais) como referência para outros desenvolvedores. Todas as chaves também podem ser fornecidas como variáveis de ambiente, que têm precedência sobre o arquivo.
 
 ---
 
@@ -85,10 +90,9 @@ O template usa Firebird por padrão, mas a infra suporta PostgreSQL sem alteraç
 
 O FireDAC conecta ao PostgreSQL via `libpq.dll`. A forma mais simples é instalar o [PostgreSQL para Windows](https://www.postgresql.org/download/windows/) — a DLL fica em `C:\Program Files\PostgreSQL\<versão>\bin\`. Adicione esse diretório ao `PATH` do sistema ou copie a `libpq.dll` para a pasta do executável.
 
-### 2. Configurar o app.ini
+### 2. Configurar o .env
 
-```ini
-[Config]
+```env
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=minha_api
@@ -165,7 +169,7 @@ CREATE TABLE exemplo (
 
 ## Suportando múltiplos bancos de dados (por configuração)
 
-O mesmo executável pode ser implantado em ambientes diferentes — client A usa Firebird, client B usa PostgreSQL — bastando alterar o `app.ini`. Nenhum código de domínio muda; apenas o DPR lê o dialeto configurado e monta a factory correta.
+O mesmo executável pode ser implantado em ambientes diferentes — client A usa Firebird, client B usa PostgreSQL — bastando alterar o `.env`. Nenhum código de domínio muda; apenas o DPR lê o dialeto configurado e monta a factory correta.
 
 ### Estrutura de SQL
 
@@ -198,12 +202,11 @@ SQL_FB_EXEMPLO_FIND_COUNT RCDATA "EXEMPLO.FIND_COUNT.sql"
 
 O prefixo (`FB` / `PG`) é definido pelo campo `SQLDirectory` do `TFDConfig` e vira o segmento do meio no nome do resource (`SQL_<DIRECTORY>_<NOME>`). Ambos os `.res` são embutidos no executável; em runtime, apenas os resources do dialeto configurado são acessados.
 
-### app.ini
+### .env
 
 Adicione uma chave `DB_DIALECT` para indicar o banco:
 
-```ini
-[Config]
+```env
 DB_DIALECT=Firebird
 DB_PATH=C:\delphi-api\bd.fdb
 DB_USER=SYSDBA
@@ -215,8 +218,7 @@ BASE_URL=http://localhost:9000
 
 Para PostgreSQL:
 
-```ini
-[Config]
+```env
 DB_DIALECT=PostgreSQL
 DB_HOST=localhost
 DB_PORT=5432
@@ -323,7 +325,7 @@ Isso gera `sql\queries.res`, que o projeto referencia via `{$R 'sql\queries.res'
 2. Compile (`Ctrl+F9`)
 3. Execute — o servidor aplica as migrations automaticamente e sobe na porta configurada
 
-O executável é gerado na **raiz do projeto** (mesma pasta do `app.ini`), garantindo que as configurações sejam lidas corretamente. Os arquivos `.dcu` intermediários vão para `Win32\Debug\` ou `Win32\Release\`.
+O executável é gerado na **raiz do projeto** (mesma pasta do `.env`), garantindo que as configurações sejam lidas corretamente. Os arquivos `.dcu` intermediários vão para `Win32\Debug\` ou `Win32\Release\`.
 
 Endpoints disponíveis após subir:
 
@@ -404,7 +406,8 @@ Crie `sql/MIG.000X.sql` com o DDL da tabela e adicione à constante `MIGRATIONS`
 .
 ├── Api.Starter.dpr          — programa principal
 ├── Api.Starter.dproj        — configuração do projeto Delphi
-├── app.ini                  — configurações de ambiente
+├── .env                     — configurações de ambiente (não versionado)
+├── .env.example             — template de configuração (versionado)
 ├── infra/                   — submodule delphi-api-infra-faa
 ├── modules/
 │   └── horse/               — submodule Horse (framework HTTP)
@@ -447,7 +450,7 @@ THorse.Use(TErrorHandlerMiddleware.New);
 // THorse.Use(TCorsMiddleware.New);                            // dev: libera *
 // THorse.Use(TCorsMiddleware.New('https://app.example.com')); // produção
 
-// Autenticação Bearer com API key — descomente e configure API_KEY no app.ini
+// Autenticação Bearer com API key — descomente e configure API_KEY no .env
 // THorse.Use(TAuthMiddleware.Bearer(
 //   function(const AToken: string): Boolean
 //   begin
@@ -455,7 +458,7 @@ THorse.Use(TErrorHandlerMiddleware.New);
 //   end,
 //   ['/health', '/swagger']));
 
-// Autenticação JWT HS256 — descomente e configure JWT_SECRET no app.ini
+// Autenticação JWT HS256 — descomente e configure JWT_SECRET no .env
 // THorse.Use(TJwtMiddleware.New(
 //   TAppConfig.Get('JWT_SECRET', ''),
 //   ['/health', '/swagger']));
