@@ -155,6 +155,39 @@ LService := TExemploService.Create(TExemploRepository.Create(LFactory));
 
 ---
 
+## Mensageria (RabbitMQ)
+
+Se o projeto precisar consumir ou publicar mensagens, adicione as chaves ao `.env` e monte o consumer no DPR após os middlewares e antes de `THorse.Listen`:
+
+```pascal
+uses
+  Messaging.Interfaces in 'infra\src\Messaging\Messaging.Interfaces.pas',
+  Messaging.Adapters.AMQP in 'infra\src\Messaging\Messaging.Adapters.AMQP.pas'; // adapter concreto
+
+// Montar config
+LMessagingConfig          := TMessagingConfig.Create;
+LMessagingConfig.Host     := TAppConfig.Get('RABBITMQ_HOST', 'localhost');
+LMessagingConfig.Port     := TAppConfig.GetInt('RABBITMQ_PORT', 5672);
+LMessagingConfig.User     := TAppConfig.Get('RABBITMQ_USER', 'guest');
+LMessagingConfig.Password := TAppConfig.Get('RABBITMQ_PASSWORD', 'guest');
+LMessagingConfig.VHost    := TAppConfig.Get('RABBITMQ_VHOST', '/');
+
+// Iniciar consumer em background
+LConsumer := TRabbitMQConsumer.Create(LMessagingConfig);
+LConsumer.Subscribe(TAppConfig.Get('RABBITMQ_QUEUE', ''), TMinhaHandler.Create(LService));
+LConsumer.Start;
+
+THorse.Listen(TAppConfig.GetInt('SERVER_PORT', 9000));
+
+LConsumer.Stop;
+```
+
+O `IMessageHandler` é implementado no projeto — ver padrão completo em `infra/CLAUDE.md`.
+
+> Nenhum adapter concreto está disponível ainda. A seção acima documenta o padrão para quando o adapter for adicionado à infra.
+
+---
+
 ## Anti-padrões a evitar
 
 - Versionar o `.env` — ele contém segredos; use `.env.example` como template
