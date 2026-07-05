@@ -159,12 +159,13 @@ LService := TExemploService.Create(TExemploRepository.Create(LFactory));
 
 Se o projeto precisar consumir ou publicar mensagens, adicione as chaves ao `.env` e monte o consumer no DPR após os middlewares e antes de `THorse.Listen`:
 
+Adapter concreto disponível: `delphi-amqp-faa` (https://github.com/fabianoallex/delphi-amqp-faa, MIT) - `Messaging.Adapters.DelphiAmqpFaa.pas` registra-se como `'rabbitmq'`. Adicione também a pasta `src` desse repo ao search path do projeto.
+
 ```pascal
 uses
-  Messaging.Interfaces        in 'infra\src\Messaging\Messaging.Interfaces.pas',
-  Messaging.Adapters.Registry in 'infra\src\Messaging\Messaging.Adapters.Registry.pas';
-  // adapter concreto (ex.: RabbitMQ) fica em pacote a parte, fora da infra -
-  // basta ele estar no uses do projeto para se registrar via initialization
+  Messaging.Interfaces          in 'infra\src\Messaging\Messaging.Interfaces.pas',
+  Messaging.Adapters.Registry   in 'infra\src\Messaging\Messaging.Adapters.Registry.pas',
+  Messaging.Adapters.DelphiAmqpFaa; // basta estar no uses para se registrar
 
 // Montar config
 LMessagingConfig          := TMessagingConfig.Create;
