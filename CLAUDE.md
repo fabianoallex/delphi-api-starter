@@ -161,8 +161,10 @@ Se o projeto precisar consumir ou publicar mensagens, adicione as chaves ao `.en
 
 ```pascal
 uses
-  Messaging.Interfaces in 'infra\src\Messaging\Messaging.Interfaces.pas',
-  Messaging.Adapters.AMQP in 'infra\src\Messaging\Messaging.Adapters.AMQP.pas'; // adapter concreto
+  Messaging.Interfaces        in 'infra\src\Messaging\Messaging.Interfaces.pas',
+  Messaging.Adapters.Registry in 'infra\src\Messaging\Messaging.Adapters.Registry.pas';
+  // adapter concreto (ex.: RabbitMQ) fica em pacote a parte, fora da infra -
+  // basta ele estar no uses do projeto para se registrar via initialization
 
 // Montar config
 LMessagingConfig          := TMessagingConfig.Create;
@@ -172,8 +174,10 @@ LMessagingConfig.User     := TAppConfig.Get('RABBITMQ_USER', 'guest');
 LMessagingConfig.Password := TAppConfig.Get('RABBITMQ_PASSWORD', 'guest');
 LMessagingConfig.VHost    := TAppConfig.Get('RABBITMQ_VHOST', '/');
 
-// Iniciar consumer em background
-LConsumer := TRabbitMQConsumer.Create(LMessagingConfig);
+// Iniciar consumer em background - 'rabbitmq' e o nome que o adapter concreto
+// usa para se registrar no TMessagingRegistry
+LFactory  := TMessagingRegistry.GetFactory(TAppConfig.Get('MESSAGING_ADAPTER', 'rabbitmq'));
+LConsumer := LFactory.CreateConsumer(LMessagingConfig);
 LConsumer.Subscribe(TAppConfig.Get('RABBITMQ_QUEUE', ''), TMinhaHandler.Create(LService));
 LConsumer.Start;
 
