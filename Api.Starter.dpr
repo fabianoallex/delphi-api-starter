@@ -78,10 +78,14 @@ begin
     LConfig.ConnectionParams.Add('CharacterSet=UTF8');
     LConfig.SQLDialect     := 'Firebird';
     LConfig.SQLDirectory   := 'QUERIES';
-    LConfig.SetPoolIniConnections(1);
-    LConfig.SetPoolMaxConnections(5);
-    LConfig.SetPoolWaitMaxAttemps(10);
-    LConfig.SetPoolWaitMilliseconds(50);
+    LConfig.SetPoolIniConnections(TAppConfig.GetInt('POOL_INI_CONNECTIONS', 1));
+    LConfig.SetPoolMaxConnections(TAppConfig.GetInt('POOL_MAX_CONNECTIONS', 5));
+    LConfig.SetPoolWaitMaxAttemps(TAppConfig.GetInt('POOL_WAIT_MAX_ATTEMPS', 10));
+    LConfig.SetPoolWaitMilliseconds(TAppConfig.GetInt('POOL_WAIT_MILLISECONDS', 50));
+    // Fecha conexões ociosas além do limite (nunca abaixo de PoolIniConnections);
+    // 0 = desligado (padrão). Ver README/CLAUDE.md da infra, seção "Pool de conexões".
+    LConfig.SetPoolIdleTimeoutSeconds(TAppConfig.GetInt('POOL_IDLE_TIMEOUT_SECONDS', 0));
+    LConfig.SetPoolIdleCheckIntervalMs(TAppConfig.GetInt('POOL_IDLE_CHECK_INTERVAL_MS', 30000));
 
     LFactory := TFDFactory.Create(LConfig, nil);
     TDBRegistry.RegisterFactory('meu_banco', LFactory);
