@@ -30,6 +30,7 @@ uses
   Common.Pagination      in 'infra\src\Common\Common.Pagination.pas',
   Common.Config          in 'infra\src\Common\Common.Config.pas',
   Common.RateLimitState  in 'infra\src\Common\Common.RateLimitState.pas',
+  Common.SafeLog         in 'infra\src\Common\Common.SafeLog.pas',
   Db.Interfaces          in 'infra\src\Db\Db.Interfaces.pas',
   Db.Constants           in 'infra\src\Db\Db.Constants.pas',
   Db.SqlDialect          in 'infra\src\Db\Db.SqlDialect.pas',
