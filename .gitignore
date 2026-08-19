@@ -7,6 +7,7 @@
 *.dcp
 *.bpl
 *.dres
+*.res
 
 # Delphi IDE artifacts
 __history/
