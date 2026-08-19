@@ -437,11 +437,12 @@ Crie `sql/MIG.000X.sql` com o DDL da tabela e adicione à constante `MIGRATIONS`
 O DPR já tem todos os middlewares da infra configurados. Logger e ErrorHandler estão ativos por padrão; os demais estão comentados para habilitar conforme necessário:
 
 ```pascal
-// Logger — PRIMEIRO (captura status correto de erros)
+// Logger — PRIMEIRO middleware em THorse.Use (mede duração total da requisição)
 THorse.Use(TLoggerMiddleware.New);
 
 // ErrorHandler — converte exceções em respostas JSON padronizadas
-THorse.Use(TErrorHandlerMiddleware.New);
+// (usa THorse.OnError, não é um middleware em THorse.Use)
+TErrorHandlerMiddleware.Register;
 
 // Rate limiting — descomente para habilitar (60 req/min por IP)
 // THorse.Use(TRateLimitMiddleware.New(60, 60));

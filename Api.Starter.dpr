@@ -107,20 +107,20 @@ begin
     // Health check — fora do Swagger e do MCP
     THealthCheck.Register(LFactory);
 
-    // Logger — deve ser o PRIMEIRO middleware
+    // Logger — deve ser o PRIMEIRO middleware em THorse.Use
     THorse.Use(TLoggerMiddleware.New);
 
-    // Middleware de erros — deve vir após o Logger
-    THorse.Use(TErrorHandlerMiddleware.New);
+    // Middleware de erros — usa THorse.OnError (não é um middleware em THorse.Use)
+    TErrorHandlerMiddleware.Register;
 
-    // Rate limiting (opcional) — deve vir após o ErrorHandler; antes de RegisterRoutes
+    // Rate limiting (opcional) — antes de RegisterRoutes
     // THorse.Use(TRateLimitMiddleware.New(60, 60));   // 60 req/min por IP
 
-    // CORS (opcional) — deve vir após o ErrorHandler; antes de RegisterRoutes
+    // CORS (opcional) — antes de RegisterRoutes
     // THorse.Use(TCorsMiddleware.New);                          // dev: libera *
     // THorse.Use(TCorsMiddleware.New('https://app.example.com')); // produção
 
-    // Autenticação Bearer com API key (opcional) — deve vir após o ErrorHandler
+    // Autenticação Bearer com API key (opcional)
     // THorse.Use(TAuthMiddleware.Bearer(
     //   function(const AToken: string): Boolean
     //   begin
