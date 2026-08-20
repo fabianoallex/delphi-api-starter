@@ -1,7 +1,13 @@
 # delphi-api-starter — Guia para Agentes de IA
 
 Template de projeto para APIs REST em Delphi com Horse e [delphi-api-infra-faa](https://github.com/fabianoallex/delphi-api-infra-faa).
-Consulte também o `CLAUDE.md` da infra (em `infra/CLAUDE.md`) para padrões detalhados de DTOs, Repository, Service e Controller.
+
+@infra/CLAUDE.md
+
+O import acima traz os padrões detalhados de DTOs, Optionals, JsonMapper, Repository, Service e
+Controller definidos na infra — carregado automaticamente em toda sessão, independente da
+subpasta em que o trabalho estiver acontecendo. As seções abaixo cobrem apenas o que é específico
+deste projeto (estrutura de pastas, migrations, `.env`, mensageria).
 
 ---
 
