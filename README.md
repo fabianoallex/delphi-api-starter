@@ -179,17 +179,19 @@ Organize os arquivos em subpastas por banco. Os nomes são idênticos; apenas o 
 sql/
   fb/
     fb.rc           — SQL_FB_MIG_0001, SQL_FB_EXEMPLO_FIND ...
-    fb.bat          — brcc32 fb.rc -fo fb.res
     MIG.0001.sql    — DDL Firebird
     EXEMPLO.FIND.sql
     ...
   pg/
     pg.rc           — SQL_PG_MIG_0001, SQL_PG_EXEMPLO_FIND ...
-    pg.bat          — brcc32 pg.rc -fo pg.res
     MIG.0001.sql    — DDL PostgreSQL
     EXEMPLO.FIND.sql
     ...
 ```
+
+Não precisa de `.bat` por dialeto — `tools\build_sql_res.bat` (já registrado como `BeforeBuild` do
+`.dproj`, ver "BeforeBuild no dproj" abaixo) varre `sql/` inteira e recompila qualquer `.rc` que
+encontrar, um por dialeto ou não.
 
 Exemplo de `sql/fb/fb.rc`:
 
@@ -295,12 +297,13 @@ begin
 
 ### BeforeBuild no dproj
 
-Compile os dois `.rc`:
+O `Target Name="BeforeBuild"` que já vem no `Api.Starter.dproj` não precisa de nenhum ajuste para
+o cenário multi-banco — ele chama `tools\build_sql_res.bat`, que varre `sql/` inteira e recompila
+todo `.rc` que encontrar (`sql\fb\fb.rc`, `sql\pg\pg.rc`, ou quantos existirem):
 
 ```xml
 <Target Name="BeforeBuild">
-  <Exec Command="brcc32.exe &quot;$(MSBuildProjectDirectory)\sql\fb\fb.rc&quot; -fo &quot;$(MSBuildProjectDirectory)\sql\fb\fb.res&quot;"/>
-  <Exec Command="brcc32.exe &quot;$(MSBuildProjectDirectory)\sql\pg\pg.rc&quot; -fo &quot;$(MSBuildProjectDirectory)\sql\pg\pg.res&quot;"/>
+  <Exec Command="&quot;$(MSBuildProjectDirectory)\tools\build_sql_res.bat&quot;" WorkingDirectory="$(MSBuildProjectDirectory)"/>
 </Target>
 ```
 
@@ -308,18 +311,12 @@ Compile os dois `.rc`:
 
 ## Compilando e executando
 
-### Primeira compilação
-
-Na primeira vez, é necessário compilar o arquivo de recursos SQL manualmente antes de abrir o projeto no Delphi:
-
-```bash
-cd sql
-queries.bat
-```
-
-Isso gera `sql\queries.res`, que o projeto referencia via `{$R 'sql\queries.res'}`. Nas compilações seguintes, o Delphi IDE atualiza o `.res` automaticamente via o target `BeforeBuild` do `.dproj`.
-
 ### Build e execução
+
+Não é preciso nenhum passo manual de compilação de recursos, nem na primeira vez: o
+`Target Name="BeforeBuild"` do `.dproj` chama `tools\build_sql_res.bat` antes de cada
+compilação, gerando `sql\queries.res` (referenciado via `{$R 'sql\queries.res'}`) a partir do
+`sql\queries.rc` sempre que o projeto for compilado — clone novo incluso.
 
 1. Abra `Api.Starter.dproj` no Delphi IDE
 2. Compile (`Ctrl+F9`)
@@ -379,12 +376,8 @@ PEDIDO.FIND_COUNT RCDATA "PEDIDO.FIND_COUNT.sql"
 ...
 ```
 
-Recompile o resource (ou deixe o build automático fazer isso):
-
-```bash
-cd sql
-queries.bat
-```
+Não precisa recompilar nada manualmente — o `BeforeBuild` do `.dproj` faz isso na próxima
+compilação.
 
 ### 4. Registrar no `Api.Starter.dpr`
 
@@ -411,9 +404,11 @@ Crie `sql/MIG.000X.sql` com o DDL da tabela e adicione à constante `MIGRATIONS`
 ├── infra/                   — submodule delphi-api-infra-faa
 ├── modules/
 │   └── horse/               — submodule Horse (framework HTTP)
+├── tools/
+│   └── build_sql_res.bat    — recompila todo .rc sob sql/ (chamado pelo BeforeBuild do .dproj)
 ├── sql/
 │   ├── queries.rc           — registro dos arquivos SQL como resources
-│   ├── queries.bat          — compila queries.rc → queries.res
+│   ├── queries.res          — gerado pelo build; não versionado (.gitignore)
 │   ├── MIG.0001.sql         — migration: cria tabela EXEMPLO
 │   ├── EXEMPLO.FIND.sql
 │   ├── EXEMPLO.FIND_COUNT.sql

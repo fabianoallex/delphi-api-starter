@@ -234,6 +234,6 @@
     <Import Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj" Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')"/>
     <Import Project="$(MSBuildProjectName).deployproj" Condition="Exists('$(MSBuildProjectName).deployproj')"/>
     <Target Name="BeforeBuild">
-        <Exec Command="&quot;$(BDS)\bin\brcc32.exe&quot; &quot;$(MSBuildProjectDirectory)\sql\queries.rc&quot; -fo &quot;$(MSBuildProjectDirectory)\sql\queries.res&quot;" WorkingDirectory="$(MSBuildProjectDirectory)\sql"/>
+        <Exec Command="&quot;$(MSBuildProjectDirectory)\tools\build_sql_res.bat&quot;" WorkingDirectory="$(MSBuildProjectDirectory)"/>
     </Target>
 </Project>

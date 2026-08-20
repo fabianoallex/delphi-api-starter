@@ -17,9 +17,10 @@ deste projeto (estrutura de pastas, migrations, `.env`, mensageria).
 Api.Starter.dpr       — programa principal; registra factories, migrations, middlewares e rotas
 .env                  — configuração de ambiente (KEY=VALUE, não versionado)
 .env.example          — template de configuração (versionado, sem segredos)
+tools/
+  build_sql_res.bat   — recompila todo .rc sob sql/ (ver "Como os SQLs são carregados" abaixo)
 sql/
   queries.rc          — registra os arquivos SQL como resources (prefixo SQL_QUERIES_)
-  queries.bat         — compila queries.rc → queries.res
   MIG.0001.sql        — primeira migration (deve criar SCHEMA_MIGRATIONS)
   EXEMPLO.*.sql       — queries do domínio Exemplo
 src/Domain/Exemplo/   — domínio de referência: DTOs, Repository, Service, Controller
@@ -42,16 +43,22 @@ Exemplo: `SQLDirectory = 'QUERIES'` + chave `'EXEMPLO.FIND'` → resource `SQL_Q
 
 O `SQLDirectory` é configurado em `TFDConfig.SQLDirectory` no DPR. Cada factory tem o seu próprio loader e portanto o seu próprio namespace.
 
+O `.res` **nunca é editado/recompilado manualmente** — `Api.Starter.dproj` já vem com um `Target
+Name="BeforeBuild"` que chama `tools\build_sql_res.bat` antes de cada compilação. O script varre
+toda a `sql/` e recompila qualquer `.rc` que encontrar (funciona também se o projeto adotar o
+padrão multi-banco descrito mais abaixo, com um `.rc` por dialeto). Detalhes e o porquê dessa
+automação em `infra/CLAUDE.md`, seção "Build automático dos `.res`".
+
 ---
 
 ## Adicionando um domínio
 
 1. Criar `src/Domain/<Nome>/` com os 4 arquivos Pascal (DTOs, Repository, Service, Controller)
 2. Criar os arquivos SQL em `sql/` (FIND, FIND_COUNT, FIND_BY_ID, INSERT, UPDATE, DELETE)
-3. Registrar cada SQL em `sql/queries.rc` seguindo o padrão `SQL_QUERIES_<NOME>`
-4. Recompilar: `cd sql && queries.bat`
-5. Adicionar as 4 units ao `uses` do DPR e chamar `RegisterRoutes` no `begin`
-6. Criar `sql/MIG.000X.sql` e adicionar à constante `MIGRATIONS` no DPR
+3. Registrar cada SQL em `sql/queries.rc` seguindo o padrão `SQL_QUERIES_<NOME>` — recompilação do
+   `.res` é automática (pre-build event), não rode `brcc32` manualmente
+4. Adicionar as 4 units ao `uses` do DPR e chamar `RegisterRoutes` no `begin`
+5. Criar `sql/MIG.000X.sql` e adicionar à constante `MIGRATIONS` no DPR
 
 ---
 
@@ -93,19 +100,17 @@ O mesmo executável pode ser implantado com Firebird ou PostgreSQL — o banco a
 sql/
   fb/
     fb.rc        — SQL_FB_MIG_0001, SQL_FB_EXEMPLO_FIND ...
-    fb.bat
     MIG.0001.sql — DDL Firebird (terminador ^)
     EXEMPLO.FIND.sql
     ...
   pg/
     pg.rc        — SQL_PG_MIG_0001, SQL_PG_EXEMPLO_FIND ...
-    pg.bat
     MIG.0001.sql — DDL PostgreSQL (terminador ;)
     EXEMPLO.FIND.sql
     ...
 ```
 
-Ambos os `.res` são embutidos no executável via `{$R}`; em runtime, apenas os resources do dialeto configurado são acessados.
+Ambos os `.res` são embutidos no executável via `{$R}`; em runtime, apenas os resources do dialeto configurado são acessados. `tools\build_sql_res.bat` já cobre esse layout sem nenhum ajuste — ele varre `sql/` inteira e recompila todo `.rc` que encontrar, um por dialeto ou não.
 
 ### DPR — factory única, seleção em runtime
 
@@ -201,6 +206,7 @@ O `IMessageHandler` é implementado no projeto — ver padrão completo em `infr
 
 ## Anti-padrões a evitar
 
+- Remover ou pular o `Target Name="BeforeBuild"` do `.dproj` — é ele que chama `tools\build_sql_res.bat` e garante que o `.res` nunca fica desatualizado em relação ao `.sql`
 - Versionar o `.env` — ele contém segredos; use `.env.example` como template
 - Usar `';'` como terminador de migration Firebird com triggers — corta o `BEGIN...END` no `;` interno
 - Omitir `SCHEMA_MIGRATIONS` no `MIG.0001` — o engine não a cria; `InsertVersionRecord` falha
