@@ -12,6 +12,10 @@ Inclui um domínio `Exemplo` funcional (CRUD completo com paginação, busca, or
 - **Firebird 2.5+** (driver `fbclient.dll` 32-bit) **ou PostgreSQL 12+** (driver `libpq.dll`)
 - Git com suporte a submodules
 
+> Lazarus/Free Pascal não é suportado — a biblioteca de infraestrutura depende de RTTI estendida
+> (DTO + Swagger automático) e de FireDAC. Os bloqueios e os critérios de reavaliação estão em
+> [`infra/docs/lazarus-compat.md`](https://github.com/fabianoallex/delphi-api-infra-faa/blob/main/docs/lazarus-compat.md).
+
 ---
 
 ## Criando um novo projeto
