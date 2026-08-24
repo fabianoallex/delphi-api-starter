@@ -204,6 +204,114 @@ O `IMessageHandler` é implementado no projeto — ver padrão completo em `infr
 
 ---
 
+## Console + serviço Windows (mesmo código, dois binários)
+
+Um projeto que vai para produção como serviço Windows normalmente quer **manter também a versão
+console**, para desenvolvimento e testes. O padrão é **um par de `.dpr`/`.dproj` sobre uma unit
+de aplicação compartilhada** — nunca `{$IFDEF}` espalhado pelo DPR, nunca dois repositórios.
+
+| Binário | `{$APPTYPE CONSOLE}` | Uso |
+|---|---|---|
+| `MinhaApi.exe` | sim | desenvolvimento/testes |
+| `MinhaApiSvc.exe` | **não** | produção, serviço Windows |
+
+### Por que não precisa de define nenhum do Horse
+
+Em `modules/horse/src/Horse.Provider.Console.pas` o loop de espera é:
+
+```pascal
+if IsConsole then
+  while FRunning do
+    GetDefaultEvent.WaitFor();
+```
+
+`IsConsole` (RTL) é `True` só quando o binário foi compilado com `{$APPTYPE CONSOLE}`. Logo o
+**mesmo provider padrão serve os dois**: no console `THorse.Listen` bloqueia (comportamento de
+sempre), no serviço ele **retorna já ouvindo** — que é exatamente o que `TService.OnStart`
+precisa. Não use `HORSE_VCL`/`HORSE_APPTYPE_VCL` nem suba o Horse numa thread só para isso.
+
+### Estrutura
+
+```
+MinhaApi.dpr / .dproj        — console;  {$APPTYPE CONSOLE};  DCC_ConsoleTarget = true
+MinhaApiSvc.dpr / .dproj     — serviço;  sem APPTYPE;         DCC_ConsoleTarget = false
+src/
+  MinhaApi.App.pas           — TODO o corpo do DPR vive aqui
+  MinhaApi.SvcMain.pas+.dfm  — TService; só o projeto do serviço referencia
+```
+
+A unit de aplicação expõe três pontos de entrada, porque o ciclo de vida do serviço é
+`start → (roda) → stop`, enquanto o do console é `start → (bloqueia) → stop`:
+
+```pascal
+type
+  TApp = class
+  public
+    class procedure Bootstrap;   // bancos, migrations, mensageria, middlewares, Swagger/MCP
+    class procedure StartHttp;   // THorse.Listen(porta) — bloqueia se IsConsole, senão retorna
+    class procedure Shutdown;    // para HTTP, consumidores e threads; libera factories. Idempotente
+  end;
+```
+
+```pascal
+// DPR console
+ReportMemoryLeaksOnShutdown := True;
+TApp.Bootstrap;
+TApp.StartHttp;   // bloqueia aqui
+TApp.Shutdown;
+
+// TService.OnStart — bootstrap em thread, ver "timeout do SCM" abaixo
+FBootstrap := TThread.CreateAnonymousThread(
+  procedure
+  begin
+    TApp.Bootstrap;
+    TApp.StartHttp;   // retorna já ouvindo
+  end);
+FBootstrap.FreeOnTerminate := False;
+FBootstrap.Start;
+Started := True;
+
+// TService.OnStop
+FBootstrap.WaitFor;
+TApp.Shutdown;
+Stopped := True;
+```
+
+### As seis armadilhas do binário sem console
+
+Todas são silenciosas: compilam, e só aparecem com o serviço instalado.
+
+| Problema | Correção |
+|---|---|
+| `SafeWriteln` levantava `EInOutError` (105) — sem console não há `Output` | já resolvido na infra (guard `IsConsole`); **atualize o submodule** |
+| cwd de um serviço é `C:\Windows\System32` — `LOG_DIR` relativo cria `System32\logs`, e LocalSystem *tem* permissão de escrever lá (falha silenciosa) | `SetCurrentDir(ExtractFilePath(ParamStr(0)))` como 1ª linha do `OnStart` + `LOG_DIR` absoluto no `.env` |
+| `ReportMemoryLeaksOnShutdown := True` abre diálogo modal na sessão 0 (invisível) e trava o stop | deixar só no `.dpr` do console |
+| Startup longo (bancos + migrations + fila) estoura o timeout do SCM (~30s) e o serviço é marcado como falho | `Bootstrap` numa thread; `Started := True` imediato |
+| Threads `while True` sem `Terminate` (ex.: loggers de snapshot do pool) impedem o processo de sair; `net stop` dá timeout | `TEvent` de parada + `WaitFor` no `Shutdown` — mesmo padrão de `StartIdleSweep`/`StopIdleSweep` em `Db.Connection.Pool.pas` |
+| Falha de bootstrap fica invisível — sem console e possivelmente sem `LOG_DIR` válido | `FileLog(['exception', ...])` **+** `TService.LogMessage` (Event Viewer) + `Controller(SERVICE_CONTROL_STOP)` |
+
+Ordem obrigatória no `Shutdown`: **HTTP → consumidores → threads que usam a factory → factories**.
+As threads de snapshot chamam `AFactory.GetPool` a cada ciclo; soltar as factories antes de pará-las
+é *use-after-free*.
+
+### Detalhes de compilação
+
+- `SERVICE_CONTROL_STOP` vem de `Winapi.WinSvc` (`Vcl.SvcMgr` não repassa). `EVENTLOG_ERROR_TYPE`
+  vem de `Winapi.Windows`.
+- Mantenha `FireDAC.ConsoleUI.Wait` nos **dois** projetos — é o wait handler sem UI. Trocar por
+  `FireDAC.VCLUI.Wait` tentaria abrir UI na sessão 0.
+- `<DCC_DcuOutput>` **separado por projeto** — senão os dois compartilham DCUs compilados com
+  `APPTYPE` diferente.
+- Pre-build event (`call tools\build_sql_res.bat`) e os `{$R 'sql\...\*.res'}` precisam estar
+  **nos dois** `.dpr`/`.dproj`.
+- Instalação: `MinhaApiSvc.exe /install` / `/uninstall` (prompt como Administrador). Depois:
+  `sc.exe config <nome> start= auto` e `sc.exe failure <nome> reset= 86400 actions= restart/60000/restart/60000/restart/60000`.
+- Os dois binários **não convivem na mesma pasta**: mesmo `.env` ⇒ mesma `SERVER_PORT` e mesmos
+  arquivos de log, com dois processos brigando pela porta e pela rotação.
+- LocalSystem não enxerga drive mapeado — `DB_PATH` em `Z:\...` ou UNC quebra no serviço.
+
+---
+
 ## Anti-padrões a evitar
 
 - Remover ou pular o `Target Name="BeforeBuild"` do `.dproj` — é ele que chama `tools\build_sql_res.bat` e garante que o `.res` nunca fica desatualizado em relação ao `.sql`
@@ -212,3 +320,10 @@ O `IMessageHandler` é implementado no projeto — ver padrão completo em `infr
 - Omitir `SCHEMA_MIGRATIONS` no `MIG.0001` — o engine não a cria; `InsertVersionRecord` falha
 - Registrar `{$R}` de apenas um banco ao usar múltiplos — o outro não terá resources
 - Usar um único namespace de SQL (`QUERIES`) para dois bancos — resources de mesmo nome colidem
+- Duplicar o corpo do DPR (ou espalhar `{$IFDEF}`) para ter console e serviço — extraia uma unit
+  `App.pas` com `Bootstrap`/`StartHttp`/`Shutdown` e faça os dois `.dpr` chamarem os mesmos três
+  métodos (ver "Console + serviço Windows")
+- Definir `HORSE_VCL`/`HORSE_APPTYPE_VCL` para "fazer o `Listen` não bloquear" num serviço — o
+  provider padrão já resolve isso sozinho via `IsConsole`; basta o binário não ter `{$APPTYPE CONSOLE}`
+- Deixar thread de background em `while True` sem sinal de parada — no console passa despercebido
+  (o processo é morto de fora), num serviço o `net stop` dá timeout no SCM
