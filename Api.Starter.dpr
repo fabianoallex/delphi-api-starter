@@ -1,4 +1,4 @@
-program Api.Starter;
+﻿program Api.Starter;
 
 {$APPTYPE CONSOLE}
 {$STRONGLINKTYPES ON}

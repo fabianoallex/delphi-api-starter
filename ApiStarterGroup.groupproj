@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{3155444E-49A7-4EB0-9ACD-6B1AAC73A465}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="Api.Starter.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Api.Starter.Svc.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="Api_Starter">
+        <MSBuild Projects="Api.Starter.dproj"/>
+    </Target>
+    <Target Name="Api_Starter:Clean">
+        <MSBuild Projects="Api.Starter.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Api_Starter:Make">
+        <MSBuild Projects="Api.Starter.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Api_Starter_Svc">
+        <MSBuild Projects="Api.Starter.Svc.dproj"/>
+    </Target>
+    <Target Name="Api_Starter_Svc:Clean">
+        <MSBuild Projects="Api.Starter.Svc.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Api_Starter_Svc:Make">
+        <MSBuild Projects="Api.Starter.Svc.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="Api_Starter;Api_Starter_Svc"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="Api_Starter:Clean;Api_Starter_Svc:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="Api_Starter:Make;Api_Starter_Svc:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
