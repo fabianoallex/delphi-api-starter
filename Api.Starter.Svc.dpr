@@ -1,19 +1,27 @@
-program Api.Starter;
+program Api.Starter.Svc;
 
-{$APPTYPE CONSOLE}
+{ SEM {$APPTYPE CONSOLE} — é isso que faz IsConsole = False e, por consequência,
+  THorse.Listen retornar em vez de bloquear (ver cabeçalho de Api.Starter.App.pas).
+  No .dproj correspondente, DCC_ConsoleTarget precisa ser false em TODAS as
+  configurações: com true o Listen volta a bloquear, dentro da thread de
+  bootstrap, e o `net stop` trava esperando o WaitFor. }
+
 {$STRONGLINKTYPES ON}
 
 {$R *.res}
 {$R 'sql\queries.res'}
 
 {
-  Binário console — desenvolvimento e testes. O binário de produção é
-  Api.Starter.Svc.dpr (serviço Windows); os dois compartilham Api.Starter.App.
-  Todo código de inicialização vive lá, nunca aqui.
+  Binário de produção — serviço Windows. Compartilha Api.Starter.App com o
+  binário console (Api.Starter.dpr); todo código de inicialização vive lá.
   Ver CLAUDE.md, seção "Console + serviço Windows (mesmo código, dois binários)".
+
+    Api.Starter.Svc.exe /install
+    Api.Starter.Svc.exe /uninstall
 }
 
 uses
+  Vcl.SvcMgr,
   System.SysUtils,
   System.Classes,
   Winapi.Windows,
@@ -22,7 +30,8 @@ uses
   FireDAC.Stan.Async,
   FireDAC.Stan.ExprFuncs,
   FireDAC.UI.Intf,
-  FireDAC.ConsoleUI.Wait,
+  FireDAC.ConsoleUI.Wait,   // wait handler sem UI — correto também em serviço.
+                            // NÃO troque por FireDAC.VCLUI.Wait: tentaria UI na sessão 0.
   FireDAC.Phys,
   FireDAC.Phys.FB,
   FireDAC.DApt,
@@ -61,20 +70,16 @@ uses
   Horse.Middleware.Cors         in 'infra\src\Middleware\Horse.Middleware.Cors.pas',
   Horse.Middleware.RateLimit    in 'infra\src\Middleware\Horse.Middleware.RateLimit.pas',
   Common.HealthCheck            in 'infra\src\Common\Common.HealthCheck.pas',
-  Api.Starter.App               in 'src\Api.Starter.App.pas'
+  Api.Starter.App               in 'src\Api.Starter.App.pas',
+  Api.Starter.SvcMain           in 'src\Api.Starter.SvcMain.pas' {ApiStarterService: TService}
   ;
 
 begin
-  // Só no console: num serviço o relatório de leaks é um diálogo modal na
-  // sessão 0 (invisível) e o processo trava no stop.
-  ReportMemoryLeaksOnShutdown := True;
+  // ReportMemoryLeaksOnShutdown NÃO entra aqui: o relatório é um diálogo modal
+  // na sessão 0 (invisível) e travaria o stop do serviço.
 
-  try
-    TApp.Bootstrap;
-    TApp.StartHttp;   // IsConsole = True -> bloqueia aqui até o Horse parar
-    TApp.Shutdown;
-  except
-    on E: Exception do
-      Writeln(E.ClassName, ': ', E.Message);
-  end;
+  if not Vcl.SvcMgr.Application.DelayInitialize or Vcl.SvcMgr.Application.Installing then
+    Vcl.SvcMgr.Application.Initialize;
+  Vcl.SvcMgr.Application.CreateForm(TApiStarterService, ApiStarterService);
+  Vcl.SvcMgr.Application.Run;
 end.

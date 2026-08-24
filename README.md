@@ -88,7 +88,7 @@ O `.env` está no `.gitignore` e nunca deve ser versionado. Use o `.env.example`
 
 ## Usando com PostgreSQL
 
-O template usa Firebird por padrão, mas a infra suporta PostgreSQL sem alterações nas camadas de domínio. Apenas o DPR, o `app.ini` e os arquivos SQL precisam ser adaptados.
+O template usa Firebird por padrão, mas a infra suporta PostgreSQL sem alterações nas camadas de domínio. Apenas `Api.Starter.App.pas`, o `.env` e os arquivos SQL precisam ser adaptados.
 
 ### 1. Pré-requisito: libpq.dll
 
@@ -106,7 +106,7 @@ SERVER_PORT=9000
 BASE_URL=http://localhost:9000
 ```
 
-### 3. Adaptar o DPR
+### 3. Adaptar `Api.Starter.App.pas`
 
 Substitua a unit do driver Firebird pela do PostgreSQL e ajuste os parâmetros de conexão:
 
@@ -161,7 +161,7 @@ CREATE TABLE exemplo (
 
 **`INSERT RETURNING`** — funciona da mesma forma em ambos os bancos.
 
-**Terminador de migration** — PostgreSQL não precisa de terminador especial; use `';'` no campo `Terminator` do DPR:
+**Terminador de migration** — PostgreSQL não precisa de terminador especial; use `';'` no campo `Terminator` da constante `MIGRATIONS`:
 
 ```pascal
 (Version: 1; ScriptName: 'MIG.0001'; ParamReplaceProc: nil; Terminator: ';'; IsDDL: True)
@@ -173,7 +173,7 @@ CREATE TABLE exemplo (
 
 ## Suportando múltiplos bancos de dados (por configuração)
 
-O mesmo executável pode ser implantado em ambientes diferentes — client A usa Firebird, client B usa PostgreSQL — bastando alterar o `.env`. Nenhum código de domínio muda; apenas o DPR lê o dialeto configurado e monta a factory correta.
+O mesmo executável pode ser implantado em ambientes diferentes — client A usa Firebird, client B usa PostgreSQL — bastando alterar o `.env`. Nenhum código de domínio muda; apenas `Api.Starter.App.pas` lê o dialeto configurado e monta a factory correta.
 
 ### Estrutura de SQL
 
@@ -235,7 +235,7 @@ SERVER_PORT=9000
 BASE_URL=http://localhost:9000
 ```
 
-### DPR — seleção em runtime
+### `Api.Starter.App.pas` — seleção em runtime
 
 Inclua os drivers de ambos os bancos e as duas constantes de migration. No `begin`, leia o dialeto e configure a factory única:
 
@@ -301,7 +301,7 @@ begin
 
 ### BeforeBuild no dproj
 
-O `Target Name="BeforeBuild"` que já vem no `Api.Starter.dproj` não precisa de nenhum ajuste para
+O `Target Name="BeforeBuild"` que já vem nos dois `.dproj` não precisa de nenhum ajuste para
 o cenário multi-banco — ele chama `tools\build_sql_res.bat`, que varre `sql/` inteira e recompila
 todo `.rc` que encontrar (`sql\fb\fb.rc`, `sql\pg\pg.rc`, ou quantos existirem):
 
@@ -327,6 +327,45 @@ compilação, gerando `sql\queries.res` (referenciado via `{$R 'sql\queries.res'
 3. Execute — o servidor aplica as migrations automaticamente e sobe na porta configurada
 
 O executável é gerado na **raiz do projeto** (mesma pasta do `.env`), garantindo que as configurações sejam lidas corretamente. Os arquivos `.dcu` intermediários vão para `Win32\Debug\` ou `Win32\Release\`.
+
+### O segundo binário: serviço Windows
+
+O template vem com **dois projetos** sobre o mesmo código:
+
+| Projeto | Binário | Uso |
+|---|---|---|
+| `Api.Starter.dproj` | `Api.Starter.exe` | console — desenvolvimento e testes |
+| `Api.Starter.Svc.dproj` | `Api.Starter.Svc.exe` | serviço Windows — produção |
+
+Todo o código de inicialização vive em `src/Api.Starter.App.pas` (`TApp.Bootstrap` /
+`TApp.StartHttp` / `TApp.Shutdown`); os dois `.dpr` são cascas finas que chamam os mesmos três
+métodos. Não há `{$IFDEF}` diferenciando os binários — a diferença é só a ausência de
+`{$APPTYPE CONSOLE}` no do serviço, que faz `THorse.Listen` retornar em vez de bloquear.
+
+Para instalar (prompt como **Administrador**, na pasta do exe):
+
+```bat
+Api.Starter.Svc.exe /install
+sc.exe config  ApiStarterService start= auto
+sc.exe failure ApiStarterService reset= 86400 actions= restart/60000/restart/60000/restart/60000
+net start ApiStarterService
+```
+
+Para remover: `net stop ApiStarterService` e `Api.Starter.Svc.exe /uninstall`.
+
+O nome no SCM (`ApiStarterService`) e o nome exibido vêm de `src/Api.Starter.SvcMain.dfm`.
+
+> Os dois binários **não convivem na mesma pasta em execução simultânea**: compartilham o mesmo
+> `.env`, logo a mesma `SERVER_PORT` e os mesmos arquivos de log. Para rodar o console enquanto o
+> serviço está no ar, use uma cópia em outra pasta, com o seu próprio `.env`.
+
+Se o seu projeto nunca for virar serviço, apague `Api.Starter.Svc.*` e `src/Api.Starter.SvcMain.*`
+— mas mantenha `Api.Starter.App.pas`: é onde o código de inicialização deve ficar de qualquer
+forma, e é o que permite acrescentar o serviço depois sem refatorar nada.
+
+Detalhes do padrão, e as armadilhas de um binário sem console (cwd em `System32`, timeout do SCM,
+threads que não param, `ReportMemoryLeaksOnShutdown`), em `CLAUDE.md`, seção
+"Console + serviço Windows".
 
 Endpoints disponíveis após subir:
 
@@ -383,15 +422,21 @@ PEDIDO.FIND_COUNT RCDATA "PEDIDO.FIND_COUNT.sql"
 Não precisa recompilar nada manualmente — o `BeforeBuild` do `.dproj` faz isso na próxima
 compilação.
 
-### 4. Registrar no `Api.Starter.dpr`
+### 4. Registrar nos `.dpr` e em `Api.Starter.App.pas`
 
-Adicione as 4 units do domínio ao `uses` e chame `TPedidoController.RegisterRoutes` no `begin`.
+Adicione as 4 units do domínio ao `uses` dos **dois** `.dpr` (`Api.Starter.dpr` e
+`Api.Starter.Svc.dpr`) — o `uses` do DPR é a lista de arquivos do projeto, e esquecer o do serviço
+faz o domínio simplesmente não entrar naquele binário, sem erro de compilação.
+
+Monte as dependências e chame `TPedidoController.RegisterRoutes` em `src/Api.Starter.App.pas`
+(dentro de `ConfigurarSwaggerEMcp`), **nunca no `begin` do DPR**.
 
 ### 5. Adicionar a migration
 
-Crie `sql/MIG.000X.sql` com o DDL da tabela e adicione à constante `MIGRATIONS` no DPR.
+Crie `sql/MIG.000X.sql` com o DDL da tabela e adicione à constante `MIGRATIONS` em
+`Api.Starter.App.pas`.
 
-> **Terminador**: use `^` (não `;`) para separar statements de nível superior no arquivo `.sql`. O `;` dentro de blocos `BEGIN...END` (triggers, procedures) é sintaxe Firebird e deve ser mantido. No DPR, declare `Terminator: '^'`.
+> **Terminador**: use `^` (não `;`) para separar statements de nível superior no arquivo `.sql`. O `;` dentro de blocos `BEGIN...END` (triggers, procedures) é sintaxe Firebird e deve ser mantido. Em `Api.Starter.App.pas`, declare `Terminator: '^'`.
 >
 > **Primeira migration**: o script `MIG.0001` deve criar a tabela `SCHEMA_MIGRATIONS` — o engine não a cria automaticamente.
 
@@ -401,8 +446,10 @@ Crie `sql/MIG.000X.sql` com o DDL da tabela e adicione à constante `MIGRATIONS`
 
 ```
 .
-├── Api.Starter.dpr          — programa principal
-├── Api.Starter.dproj        — configuração do projeto Delphi
+├── Api.Starter.dpr          — binário console (dev/testes); casca fina, só chama TApp
+├── Api.Starter.dproj        — configuração do projeto console
+├── Api.Starter.Svc.dpr      — binário serviço Windows (produção); casca fina
+├── Api.Starter.Svc.dproj    — configuração do projeto do serviço
 ├── .env                     — configurações de ambiente (não versionado)
 ├── .env.example             — template de configuração (versionado)
 ├── infra/                   — submodule delphi-api-infra-faa
@@ -421,6 +468,8 @@ Crie `sql/MIG.000X.sql` com o DDL da tabela e adicione à constante `MIGRATIONS`
 │   ├── EXEMPLO.UPDATE.sql
 │   └── EXEMPLO.DELETE.sql
 └── src/
+    ├── Api.Starter.App.pas       — TApp: TODO o código de inicialização (usado pelos 2 binários)
+    ├── Api.Starter.SvcMain.pas   — TService (+ .dfm); só o projeto do serviço o compila
     └── Domain/
         └── Exemplo/
             ├── Exemplo.DTOs.pas

@@ -14,7 +14,11 @@ deste projeto (estrutura de pastas, migrations, `.env`, mensageria).
 ## Estrutura essencial
 
 ```
-Api.Starter.dpr       — programa principal; registra factories, migrations, middlewares e rotas
+Api.Starter.dpr       — binário CONSOLE (dev/testes); casca fina, só chama TApp
+Api.Starter.Svc.dpr   — binário SERVIÇO Windows (produção); casca fina, só sobe o TService
+src/
+  Api.Starter.App.pas     — TApp.Bootstrap/StartHttp/Shutdown: TODO o código de inicialização
+  Api.Starter.SvcMain.pas — TService (+ .dfm); só o projeto do serviço o compila
 .env                  — configuração de ambiente (KEY=VALUE, não versionado)
 .env.example          — template de configuração (versionado, sem segredos)
 tools/
@@ -41,10 +45,11 @@ SQL_<SQLDirectory>_<NomeDoArquivo_pontos_viram_underscores>
 
 Exemplo: `SQLDirectory = 'QUERIES'` + chave `'EXEMPLO.FIND'` → resource `SQL_QUERIES_EXEMPLO_FIND`.
 
-O `SQLDirectory` é configurado em `TFDConfig.SQLDirectory` no DPR. Cada factory tem o seu próprio loader e portanto o seu próprio namespace.
+O `SQLDirectory` é configurado em `TFDConfig.SQLDirectory` em `Api.Starter.App.pas`. Cada factory tem o seu próprio loader e portanto o seu próprio namespace.
 
-O `.res` **nunca é editado/recompilado manualmente** — `Api.Starter.dproj` já vem com um `Target
-Name="BeforeBuild"` que chama `tools\build_sql_res.bat` antes de cada compilação. O script varre
+O `.res` **nunca é editado/recompilado manualmente** — `Api.Starter.dproj` **e**
+`Api.Starter.Svc.dproj` já vêm com um `Target Name="BeforeBuild"` que chama
+`tools\build_sql_res.bat` antes de cada compilação. O script varre
 toda a `sql/` e recompila qualquer `.rc` que encontrar (funciona também se o projeto adotar o
 padrão multi-banco descrito mais abaixo, com um `.rc` por dialeto). Detalhes e o porquê dessa
 automação em `infra/CLAUDE.md`, seção "Build automático dos `.res`".
@@ -57,15 +62,19 @@ automação em `infra/CLAUDE.md`, seção "Build automático dos `.res`".
 2. Criar os arquivos SQL em `sql/` (FIND, FIND_COUNT, FIND_BY_ID, INSERT, UPDATE, DELETE)
 3. Registrar cada SQL em `sql/queries.rc` seguindo o padrão `SQL_QUERIES_<NOME>` — recompilação do
    `.res` é automática (pre-build event), não rode `brcc32` manualmente
-4. Adicionar as 4 units ao `uses` do DPR e chamar `RegisterRoutes` no `begin`
-5. Criar `sql/MIG.000X.sql` e adicionar à constante `MIGRATIONS` no DPR
+4. Adicionar as 4 units ao `uses` dos **dois** `.dpr` (`Api.Starter.dpr` e `Api.Starter.Svc.dpr`)
+   — o `uses` do DPR é a lista de arquivos do projeto; esquecer o do serviço faz o domínio
+   simplesmente não entrar naquele binário, sem erro de compilação
+5. Montar as dependências (Repository → Service) e chamar `RegisterRoutes` em
+   `src/Api.Starter.App.pas` — **nunca no `begin` do DPR**, que é só uma casca
+6. Criar `sql/MIG.000X.sql` e adicionar à constante `MIGRATIONS` em `Api.Starter.App.pas`
 
 ---
 
 ## Migrations
 
 - O script `MIG.0001` **deve** criar a tabela `SCHEMA_MIGRATIONS` — o engine não a cria automaticamente
-- Use `^` como terminador de nível superior em scripts Firebird (evita cortar `BEGIN...END` no `;` interno); declare `Terminator: '^'` no DPR
+- Use `^` como terminador de nível superior em scripts Firebird (evita cortar `BEGIN...END` no `;` interno); declare `Terminator: '^'` na constante `MIGRATIONS` de `Api.Starter.App.pas`
 - Use `';'` para PostgreSQL (DDL é transacional; não precisa de terminador alternativo)
 - Todos os scripts de migration devem ter `IsDDL: True` para DDL
 
@@ -92,7 +101,7 @@ BASE_URL=http://localhost:9000
 
 ## Suporte a múltiplos bancos por configuração
 
-O mesmo executável pode ser implantado com Firebird ou PostgreSQL — o banco ativo é determinado pela chave `DB_DIALECT` no `.env`. Nenhum código de domínio muda; apenas o DPR lê o dialeto e monta a factory correta.
+O mesmo executável pode ser implantado com Firebird ou PostgreSQL — o banco ativo é determinado pela chave `DB_DIALECT` no `.env`. Nenhum código de domínio muda; apenas `Api.Starter.App.pas` lê o dialeto e monta a factory correta.
 
 ### Estrutura de arquivos SQL
 
@@ -112,7 +121,7 @@ sql/
 
 Ambos os `.res` são embutidos no executável via `{$R}`; em runtime, apenas os resources do dialeto configurado são acessados. `tools\build_sql_res.bat` já cobre esse layout sem nenhum ajuste — ele varre `sql/` inteira e recompila todo `.rc` que encontrar, um por dialeto ou não.
 
-### DPR — factory única, seleção em runtime
+### `Api.Starter.App.pas` — factory única, seleção em runtime
 
 ```pascal
 {$R 'sql\fb\fb.res'}
@@ -168,7 +177,7 @@ LService := TExemploService.Create(TExemploRepository.Create(LFactory));
 
 ## Mensageria (RabbitMQ)
 
-Se o projeto precisar consumir ou publicar mensagens, adicione as chaves ao `.env` e monte o consumer no DPR após os middlewares e antes de `THorse.Listen`:
+Se o projeto precisar consumir ou publicar mensagens, adicione as chaves ao `.env` e monte o consumer em `TApp.Bootstrap` (`Api.Starter.App.pas`) após os middlewares, e registre o `Stop`/`Free` dele em `TApp.Shutdown`:
 
 Adapter concreto disponível: `delphi-amqp-faa` (https://github.com/fabianoallex/delphi-amqp-faa, MIT) - `Messaging.Adapters.DelphiAmqpFaa.pas` registra-se como `'rabbitmq'`. Adicione também a pasta `src` desse repo ao search path do projeto.
 
@@ -206,14 +215,22 @@ O `IMessageHandler` é implementado no projeto — ver padrão completo em `infr
 
 ## Console + serviço Windows (mesmo código, dois binários)
 
-Um projeto que vai para produção como serviço Windows normalmente quer **manter também a versão
-console**, para desenvolvimento e testes. O padrão é **um par de `.dpr`/`.dproj` sobre uma unit
-de aplicação compartilhada** — nunca `{$IFDEF}` espalhado pelo DPR, nunca dois repositórios.
+**O template já vem separado — não há nada a fazer para ganhar isso.** Um projeto que vai para
+produção como serviço Windows normalmente quer manter também a versão console, para
+desenvolvimento e testes; a estrutura é **um par de `.dpr`/`.dproj` sobre uma unit de aplicação
+compartilhada** — nunca `{$IFDEF}` espalhado pelo DPR, nunca dois repositórios.
 
 | Binário | `{$APPTYPE CONSOLE}` | Uso |
 |---|---|---|
-| `MinhaApi.exe` | sim | desenvolvimento/testes |
-| `MinhaApiSvc.exe` | **não** | produção, serviço Windows |
+| `Api.Starter.exe` | sim | desenvolvimento/testes |
+| `Api.Starter.Svc.exe` | **não** | produção, serviço Windows |
+
+Ao renomear o projeto, renomeie os dois `.dpr`/`.dproj` e as duas units juntos, e ajuste
+`Name`/`DisplayName` em `src/Api.Starter.SvcMain.dfm` (é o `Name` que vira o nome no SCM).
+Se o projeto nunca for virar serviço, dá para apagar `Api.Starter.Svc.*` e
+`src/Api.Starter.SvcMain.*` — mas **mantenha `Api.Starter.App.pas`**: é lá que o código de
+inicialização deve morar de qualquer forma, e é o que permite acrescentar o serviço depois sem
+refatorar nada.
 
 ### Por que não precisa de define nenhum do Horse
 
@@ -233,12 +250,18 @@ precisa. Não use `HORSE_VCL`/`HORSE_APPTYPE_VCL` nem suba o Horse numa thread s
 ### Estrutura
 
 ```
-MinhaApi.dpr / .dproj        — console;  {$APPTYPE CONSOLE};  DCC_ConsoleTarget = true
-MinhaApiSvc.dpr / .dproj     — serviço;  sem APPTYPE;         DCC_ConsoleTarget = false
+Api.Starter.dpr / .dproj         — console;  {$APPTYPE CONSOLE};  DCC_ConsoleTarget = true
+Api.Starter.Svc.dpr / .dproj     — serviço;  sem APPTYPE;         DCC_ConsoleTarget = false
 src/
-  MinhaApi.App.pas           — TODO o corpo do DPR vive aqui
-  MinhaApi.SvcMain.pas+.dfm  — TService; só o projeto do serviço referencia
+  Api.Starter.App.pas            — TODO o corpo do DPR vive aqui
+  Api.Starter.SvcMain.pas+.dfm   — TService; só o projeto do serviço referencia
 ```
+
+Os dois `.dproj` são idênticos exceto por: `ProjectGuid`, `MainSource`, `ProjectName`,
+`SanitizedProjectName`, `FrameworkType` (None/VCL), `AppType` (Console/Application),
+`DCC_ConsoleTarget` (true/false), `DCC_DcuOutput` (o do serviço acrescenta `\Svc`) e as duas
+`DCCReference` a mais. O `Target Name="BeforeBuild"` que chama `tools\build_sql_res.bat` está
+**nos dois** — nunca remova de um só.
 
 A unit de aplicação expõe três pontos de entrada, porque o ciclo de vida do serviço é
 `start → (roda) → stop`, enquanto o do console é `start → (bloqueia) → stop`:
@@ -320,9 +343,10 @@ As threads de snapshot chamam `AFactory.GetPool` a cada ciclo; soltar as factori
 - Omitir `SCHEMA_MIGRATIONS` no `MIG.0001` — o engine não a cria; `InsertVersionRecord` falha
 - Registrar `{$R}` de apenas um banco ao usar múltiplos — o outro não terá resources
 - Usar um único namespace de SQL (`QUERIES`) para dois bancos — resources de mesmo nome colidem
-- Duplicar o corpo do DPR (ou espalhar `{$IFDEF}`) para ter console e serviço — extraia uma unit
-  `App.pas` com `Bootstrap`/`StartHttp`/`Shutdown` e faça os dois `.dpr` chamarem os mesmos três
-  métodos (ver "Console + serviço Windows")
+- Escrever código de inicialização no `begin` do `.dpr` — os dois `.dpr` são cascas finas; tudo
+  vive em `Api.Starter.App.pas` (`Bootstrap`/`StartHttp`/`Shutdown`). Duplicar esse corpo, ou
+  espalhar `{$IFDEF}` para diferenciar console de serviço, desfaz exatamente o que o template
+  já resolve (ver "Console + serviço Windows")
 - Definir `HORSE_VCL`/`HORSE_APPTYPE_VCL` para "fazer o `Listen` não bloquear" num serviço — o
   provider padrão já resolve isso sozinho via `IsConsole`; basta o binário não ter `{$APPTYPE CONSOLE}`
 - Deixar thread de background em `while True` sem sinal de parada — no console passa despercebido
