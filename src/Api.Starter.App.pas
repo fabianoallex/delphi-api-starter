@@ -1,6 +1,6 @@
 ﻿unit Api.Starter.App;
 
-{
+(*
   Corpo da aplicação, compartilhado pelos dois binários do template:
 
     Api.Starter.dpr       - console  ({$APPTYPE CONSOLE})  -> desenvolvimento/testes
@@ -29,7 +29,7 @@
   Ao acrescentar recursos de background (consumidor de mensageria, threads de
   monitoramento, jobs), registre a parada de cada um em Shutdown, na ordem:
   HTTP -> consumidores -> threads que usam a factory -> factories.
-}
+*)
 
 interface
 

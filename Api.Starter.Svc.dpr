@@ -1,10 +1,10 @@
-program Api.Starter.Svc;
+﻿program Api.Starter.Svc;
 
-{ SEM {$APPTYPE CONSOLE} — é isso que faz IsConsole = False e, por consequência,
+(* SEM {$APPTYPE CONSOLE} — é isso que faz IsConsole = False e, por consequência,
   THorse.Listen retornar em vez de bloquear (ver cabeçalho de Api.Starter.App.pas).
   No .dproj correspondente, DCC_ConsoleTarget precisa ser false em TODAS as
   configurações: com true o Listen volta a bloquear, dentro da thread de
-  bootstrap, e o `net stop` trava esperando o WaitFor. }
+  bootstrap, e o `net stop` trava esperando o WaitFor. *)
 
 {$STRONGLINKTYPES ON}
 
