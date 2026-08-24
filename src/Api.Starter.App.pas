@@ -55,7 +55,8 @@ uses
   Db.Adapters.Registry,
   Db.Adapters.FireDAC,
   Db.Migrations,
-  Swagger.Server,
+  // TRouteDoc esta em Swagger.Builder; Swagger.Server so expoe TSwaggerServer
+  Swagger.Builder,
   MCP.Server,
   Horse.Middleware.Logger,
   Horse.Middleware.ErrorHandler,
