@@ -217,8 +217,8 @@ sql/
     ...
 ```
 
-Não precisa de `.bat` por dialeto — `tools\build_sql_res.bat` (já registrado como `BeforeBuild` do
-`.dproj`, ver "BeforeBuild no dproj" abaixo) varre `sql/` inteira e recompila qualquer `.rc` que
+Não precisa de `.bat` por dialeto — `tools\build_sql_res.bat` (já registrado como Pre-build event
+do `.dproj`, ver "Pre-build event no dproj" abaixo) varre `sql/` inteira e recompila qualquer `.rc` que
 encontrar, um por dialeto ou não.
 
 Exemplo de `sql/fb/fb.rc`:
@@ -323,17 +323,23 @@ begin
   LService := TExemploService.Create(TExemploRepository.Create(LFactory));
 ```
 
-### BeforeBuild no dproj
+### Pre-build event no dproj
 
-O `Target Name="BeforeBuild"` que já vem nos dois `.dproj` não precisa de nenhum ajuste para
-o cenário multi-banco — ele chama `tools\build_sql_res.bat`, que varre `sql/` inteira e recompila
-todo `.rc` que encontrar (`sql\fb\fb.rc`, `sql\pg\pg.rc`, ou quantos existirem):
+O Pre-build event que já vem nos dois `.dproj` não precisa de nenhum ajuste para o cenário
+multi-banco — ele chama `tools\build_sql_res.bat`, que varre `sql/` inteira e recompila todo `.rc`
+que encontrar (`sql\fb\fb.rc`, `sql\pg\pg.rc`, ou quantos existirem). Fica em Project Options >
+Building > Build Events > Pre-build event (`call tools\build_sql_res.bat`, para "All
+configurations - All platforms"), e a IDE o grava no `.dproj` assim:
 
 ```xml
-<Target Name="BeforeBuild">
-  <Exec Command="&quot;$(MSBuildProjectDirectory)\tools\build_sql_res.bat&quot;" WorkingDirectory="$(MSBuildProjectDirectory)"/>
-</Target>
+<PreBuildEvent><![CDATA[call tools\build_sql_res.bat
+$(PreBuildEvent)]]></PreBuildEvent>
 ```
+
+**Configure sempre pela IDE.** Um `<Target Name="BeforeBuild">` escrito à mão no `.dproj` (era
+como este template vinha até 2026-10) é **ignorado** pelo build da IDE: o `.res` não é regerado,
+sem erro nenhum, e o `.exe` embute o SQL antigo. Para conferir que está funcionando: depois de um
+Build, a data de `sql\queries.res` tem que ser a do build.
 
 ---
 
@@ -342,7 +348,7 @@ todo `.rc` que encontrar (`sql\fb\fb.rc`, `sql\pg\pg.rc`, ou quantos existirem):
 ### Build e execução
 
 Não é preciso nenhum passo manual de compilação de recursos, nem na primeira vez: o
-`Target Name="BeforeBuild"` do `.dproj` chama `tools\build_sql_res.bat` antes de cada
+Pre-build event do `.dproj` chama `tools\build_sql_res.bat` antes de cada
 compilação, gerando `sql\queries.res` (referenciado via `{$R 'sql\queries.res'}`) a partir do
 `sql\queries.rc` sempre que o projeto for compilado — clone novo incluso.
 
@@ -443,7 +449,7 @@ PEDIDO.FIND_COUNT RCDATA "PEDIDO.FIND_COUNT.sql"
 ...
 ```
 
-Não precisa recompilar nada manualmente — o `BeforeBuild` do `.dproj` faz isso na próxima
+Não precisa recompilar nada manualmente — o Pre-build event do `.dproj` faz isso na próxima
 compilação.
 
 ### 4. Registrar nos `.dpr` e em `Api.Starter.App.pas`
@@ -481,7 +487,7 @@ Crie `sql/MIG.000X.sql` com o DDL da tabela e adicione à constante `MIGRATIONS`
 │   ├── horse/               — submodule Horse (framework HTTP)
 │   └── pascal-common-faa/   — submodule pascal-common-faa (optionals, relógio, cache) — a cópia única do projeto
 ├── tools/
-│   └── build_sql_res.bat    — recompila todo .rc sob sql/ (chamado pelo BeforeBuild do .dproj)
+│   └── build_sql_res.bat    — recompila todo .rc sob sql/ (chamado pelo Pre-build event do .dproj)
 ├── sql/
 │   ├── queries.rc           — registro dos arquivos SQL como resources
 │   ├── queries.res          — gerado pelo build; não versionado (.gitignore)

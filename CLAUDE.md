@@ -56,7 +56,7 @@ Exemplo: `SQLDirectory = 'QUERIES'` + chave `'EXEMPLO.FIND'` → resource `SQL_Q
 O `SQLDirectory` é configurado em `TFDConfig.SQLDirectory` em `Api.Starter.App.pas`. Cada factory tem o seu próprio loader e portanto o seu próprio namespace.
 
 O `.res` **nunca é editado/recompilado manualmente** — `Api.Starter.dproj` **e**
-`Api.Starter.Svc.dproj` já vêm com um `Target Name="BeforeBuild"` que chama
+`Api.Starter.Svc.dproj` já vêm com um Pre-build event (Build Events da IDE) que chama
 `tools\build_sql_res.bat` antes de cada compilação. O script varre
 toda a `sql/` e recompila qualquer `.rc` que encontrar (funciona também se o projeto adotar o
 padrão multi-banco descrito mais abaixo, com um `.rc` por dialeto). Detalhes e o porquê dessa
@@ -268,8 +268,9 @@ src/
 Os dois `.dproj` são idênticos exceto por: `ProjectGuid`, `MainSource`, `ProjectName`,
 `SanitizedProjectName`, `FrameworkType` (None/VCL), `AppType` (Console/Application),
 `DCC_ConsoleTarget` (true/false), `DCC_DcuOutput` (o do serviço acrescenta `\Svc`) e as duas
-`DCCReference` a mais. O `Target Name="BeforeBuild"` que chama `tools\build_sql_res.bat` está
-**nos dois** — nunca remova de um só.
+`DCCReference` a mais. O Pre-build event que chama `tools\build_sql_res.bat` está
+**nos dois** — nunca remova de um só, e configure-o sempre pela IDE (Build Events): um
+`<Target Name="BeforeBuild">` escrito à mão no `.dproj` é ignorado pelo build da IDE.
 
 A unit de aplicação expõe três pontos de entrada, porque o ciclo de vida do serviço é
 `start → (roda) → stop`, enquanto o do console é `start → (bloqueia) → stop`:
@@ -345,7 +346,7 @@ As threads de snapshot chamam `AFactory.GetPool` a cada ciclo; soltar as factori
 
 ## Anti-padrões a evitar
 
-- Remover ou pular o `Target Name="BeforeBuild"` do `.dproj` — é ele que chama `tools\build_sql_res.bat` e garante que o `.res` nunca fica desatualizado em relação ao `.sql`
+- Remover ou pular o Pre-build event do `.dproj` (ou trocá-lo por um `<Target Name="BeforeBuild">` escrito à mão, que a IDE ignora) — é ele que chama `tools\build_sql_res.bat` e garante que o `.res` nunca fica desatualizado em relação ao `.sql`
 - Versionar o `.env` — ele contém segredos; use `.env.example` como template
 - Usar `';'` como terminador de migration Firebird com triggers — corta o `BEGIN...END` no `;` interno
 - Omitir `SCHEMA_MIGRATIONS` no `MIG.0001` — o engine não a cria; `InsertVersionRecord` falha
