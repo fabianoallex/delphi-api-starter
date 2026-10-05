@@ -32,7 +32,8 @@ type
 implementation
 
 uses
-  System.SysUtils;
+  System.SysUtils,
+  Horse.Middleware.ErrorHandler;
 
 { TExemploService }
 
@@ -49,21 +50,21 @@ end;
 function TExemploService.FindById(const AId: Integer): IExemploResponseDTO;
 begin
   if AId <= 0 then
-    raise Exception.Create('ID inválido.');
+    raise EValidationException.Create('ID inválido.');
   Result := FRepository.FindById(AId);
 end;
 
 function TExemploService.Insert(ADto: IExemploInsertDTO): IExemploResponseDTO;
 begin
   if Trim(ADto.Nome) = '' then
-    raise Exception.Create('Nome é obrigatório.');
+    raise EValidationException.Create('Nome é obrigatório.');
   Result := FRepository.Insert(ADto);
 end;
 
 procedure TExemploService.Update(const AId: Integer; ADto: IExemploUpdateDTO);
 begin
   if Assigned(ADto.Nome) and ADto.Nome.HasValue and (Trim(ADto.Nome.Value) = '') then
-    raise Exception.Create('Nome não pode ser vazio.');
+    raise EValidationException.Create('Nome não pode ser vazio.');
   FRepository.Update(AId, ADto);
 end;
 
