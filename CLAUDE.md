@@ -30,7 +30,15 @@ sql/
 src/Domain/Exemplo/   — domínio de referência: DTOs, Repository, Service, Controller
 infra/                — submodule delphi-api-infra-faa
 modules/horse/        — submodule Horse
+modules/pascal-common-faa/ — submodule pascal-common-faa (PascalCommon.Optionals etc.)
 ```
+
+**pascal-common-faa: uma cópia só, a de `modules/`.** `PascalCommon.Optionals`,
+`PascalCommon.SystemContext` e `PascalCommon.ClockCache` (que substituíram `Common.Optionals`
+etc. na infra v0.1.0) vêm de `modules/pascal-common-faa/src`, que está no search path dos dois
+`.dproj`. `infra/external/pascal-common-faa` existe só para os testes da infra: nunca o
+coloque no search path nem nos `uses ... in '...'`. Guia de atualização:
+`infra/docs/migracao-pascal-common-faa.md`.
 
 ---
 
