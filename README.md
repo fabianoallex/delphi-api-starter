@@ -38,6 +38,30 @@ git clone --recurse-submodules https://github.com/fabianoallex/delphi-api-starte
 cd meu-projeto
 ```
 
+### Submodules: uma cópia da pascal-common-faa por aplicação
+
+O projeto tem três submodules: `infra/` (delphi-api-infra-faa), `modules/horse/` e
+`modules/pascal-common-faa/`. Os tipos opcionais (`IOptString`...), o relógio injetável e o
+cache vêm da [pascal-common-faa](https://github.com/fabianoallex/pascal-common-faa), e a cópia
+dela **é do projeto**, em `modules/pascal-common-faa`. A infra não traz a sua. O clone recursivo
+(necessário por causa do SwagDoc, aninhado em `infra/`) também baixa
+`infra/external/pascal-common-faa`, mas essa pasta é só dos testes da infra e **nunca** entra no
+search path. Assim, quando o projeto passar a usar outra lib que dependa da pascal-common-faa
+(pascal-db-faa, pascal-amqp-faa...), todas usam a mesma cópia, a de `modules/`.
+
+Para atualizar a infra (da raiz do projeto, nunca de dentro de `infra/`):
+
+```bash
+git -C infra fetch --tags
+git -C infra checkout <tag>
+git add infra
+git submodule update --init --recursive infra
+```
+
+O `git add infra` vem antes do `update`; sem ele, o `update` volta o `infra` ao ponteiro antigo.
+Se a nova versão da infra pedir uma pascal-common-faa mais nova, a build para com `F1054` e a
+mensagem diz qual. Nesse caso, avance também `modules/pascal-common-faa`.
+
 ---
 
 ## Configuração
@@ -454,7 +478,8 @@ Crie `sql/MIG.000X.sql` com o DDL da tabela e adicione à constante `MIGRATIONS`
 ├── .env.example             — template de configuração (versionado)
 ├── infra/                   — submodule delphi-api-infra-faa
 ├── modules/
-│   └── horse/               — submodule Horse (framework HTTP)
+│   ├── horse/               — submodule Horse (framework HTTP)
+│   └── pascal-common-faa/   — submodule pascal-common-faa (optionals, relógio, cache) — a cópia única do projeto
 ├── tools/
 │   └── build_sql_res.bat    — recompila todo .rc sob sql/ (chamado pelo BeforeBuild do .dproj)
 ├── sql/

@@ -80,7 +80,7 @@
         <DCC_K>false</DCC_K>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
         <SanitizedProjectName>Api_Starter</SanitizedProjectName>
-        <DCC_UnitSearchPath>infra\src\Common;infra\src\Db;infra\src\Swagger;infra\src\MCP;infra\src\Middleware;infra\modules\swag-doc\Source;modules\horse\src;src;src\Domain\Exemplo;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>infra\src\Common;infra\src\Db;infra\src\Swagger;infra\src\MCP;infra\src\Middleware;infra\modules\swag-doc\Source;modules\pascal-common-faa\src;modules\horse\src;src;src\Domain\Exemplo;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Android)'!=''">
         <VerInfo_Keys>package=com.embarcadero.$(MSBuildProjectName);label=$(MSBuildProjectName);versionCode=1;versionName=1.0.0;persistent=False;restoreAnyVersion=False;installLocation=auto;largeHeap=False;theme=TitleBar;hardwareAccelerated=true;apiKey=</VerInfo_Keys>
@@ -155,9 +155,9 @@
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
         <DCCReference Include="modules\horse\src\Horse.pas"/>
-        <DCCReference Include="infra\src\Common\Common.Optionals.pas"/>
-        <DCCReference Include="infra\src\Common\Common.SystemContext.pas"/>
-        <DCCReference Include="infra\src\Common\Common.ClockCache.pas"/>
+        <DCCReference Include="modules\pascal-common-faa\src\PascalCommon.Optionals.pas"/>
+        <DCCReference Include="modules\pascal-common-faa\src\PascalCommon.SystemContext.pas"/>
+        <DCCReference Include="modules\pascal-common-faa\src\PascalCommon.ClockCache.pas"/>
         <DCCReference Include="infra\src\Common\Common.Helpers.pas"/>
         <DCCReference Include="infra\src\Common\Common.JsonMapper.pas"/>
         <DCCReference Include="infra\src\Common\Common.OrderBy.pas"/>
@@ -1196,7 +1196,7 @@
                 <Platform value="OSX64">False</Platform>
                 <Platform value="OSXARM64">False</Platform>
                 <Platform value="Win32">True</Platform>
-                <Platform value="Win64">False</Platform>
+                <Platform value="Win64">True</Platform>
             </Platforms>
         </BorlandProject>
         <ProjectFileVersion>12</ProjectFileVersion>
