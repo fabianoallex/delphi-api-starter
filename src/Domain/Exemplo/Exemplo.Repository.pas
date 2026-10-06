@@ -4,7 +4,7 @@ interface
 
 uses
   System.SysUtils,
-  Db.Interfaces,
+  PascalDb.Interfaces,
   PascalCommon.Optionals,
   Common.OrderBy,
   Exemplo.DTOs;
@@ -43,7 +43,7 @@ type
 implementation
 
 uses
-  Db.SqlLoader,
+  PascalDb.SqlLoader,
   Common.Pagination;
 
 { TExemploRepository }

@@ -56,7 +56,7 @@
         <DCC_K>false</DCC_K>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
         <SanitizedProjectName>Api_Starter_Svc</SanitizedProjectName>
-        <DCC_UnitSearchPath>infra\src\Common;infra\src\Db;infra\src\Swagger;infra\src\MCP;infra\src\Middleware;infra\modules\swag-doc\Source;modules\pascal-common-faa\src;modules\horse\src;src;src\Domain\Exemplo;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>infra\src\Common;infra\src\Swagger;infra\src\MCP;infra\src\Middleware;infra\modules\swag-doc\Source;modules\pascal-common-faa\src;modules\pascal-db-faa\src;modules\pascal-db-faa\adapters\firedac;modules\horse\src;src;src\Domain\Exemplo;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
         <DCC_UsePackage>vclwinx;fmx;vclie;DbxCommonDriver;bindengine;IndyIPCommon;VCLRESTComponents;FireDACCommonODBC;FireDACCommonDriver;appanalytics;IndyProtocols;vclx;Skia.Package.RTL;IndyIPClient;dbxcds;vcledge;bindcompvclwinx;FmxTeeUI;bindcompfmx;inetdb;ibmonitor;FireDACSqliteDriver;DbxClientDriver;Tee;soapmidas;vclactnband;TeeUI;fmxFireDAC;dbexpress;DBXMySQLDriver;VclSmp;inet;vcltouch;fmxase;dbrtl;Skia.Package.FMX;fmxdae;TeeDB;FireDACMSAccDriver;CustomIPTransport;vcldsnap;DBXInterBaseDriver;IndySystem;Skia.Package.VCL;vcldb;ibxbindings;vclFireDAC;bindcomp;FireDACCommon;IndyCore;RESTBackendComponents;bindcompdbx;rtl;FireDACMySQLDriver;FireDACADSDriver;RESTComponents;DBXSqliteDriver;vcl;IndyIPServer;dsnapxml;dsnapcon;adortl;vclimg;FireDACPgDriver;FireDAC;inetdbxpress;xmlrtl;tethering;ibxpress;bindcompvcl;dsnap;CloudService;vclib;fmxobj;bindcompvclsmp;FMXTee;soaprtl;soapserver;FireDACIBDriver;$(DCC_UsePackage)</DCC_UsePackage>
@@ -69,6 +69,7 @@
         <UWP_DelphiLogo150>$(BDS)\bin\Artwork\Windows\UWP\delphi_UwpDefault_150.png</UWP_DelphiLogo150>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
+        <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;$(DCC_Namespace)</DCC_Namespace>
         <DCC_UsePackage>vclwinx;fmx;vclie;DbxCommonDriver;bindengine;IndyIPCommon;VCLRESTComponents;FireDACCommonODBC;FireDACCommonDriver;appanalytics;IndyProtocols;vclx;IndyIPClient;dbxcds;vcledge;bindcompvclwinx;FmxTeeUI;bindcompfmx;inetdb;ibmonitor;FireDACSqliteDriver;DbxClientDriver;Tee;soapmidas;vclactnband;TeeUI;fmxFireDAC;dbexpress;DBXMySQLDriver;VclSmp;inet;vcltouch;fmxase;dbrtl;fmxdae;TeeDB;FireDACMSAccDriver;CustomIPTransport;vcldsnap;DBXInterBaseDriver;IndySystem;Skia.Package.VCL;vcldb;ibxbindings;vclFireDAC;bindcomp;FireDACCommon;IndyCore;RESTBackendComponents;bindcompdbx;rtl;FireDACMySQLDriver;FireDACADSDriver;RESTComponents;DBXSqliteDriver;vcl;IndyIPServer;dsnapxml;dsnapcon;adortl;vclimg;FireDACPgDriver;FireDAC;inetdbxpress;xmlrtl;tethering;ibxpress;bindcompvcl;dsnap;CloudService;vclib;fmxobj;bindcompvclsmp;FMXTee;soaprtl;soapserver;FireDACIBDriver;$(DCC_UsePackage)</DCC_UsePackage>
         <DCC_ConsoleTarget>false</DCC_ConsoleTarget>
         <UWP_DelphiLogo44>$(BDS)\bin\Artwork\Windows\UWP\delphi_UwpDefault_44.png</UWP_DelphiLogo44>
@@ -117,14 +118,16 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <DCCReference Include="infra\src\Common\Common.Config.pas"/>
         <DCCReference Include="infra\src\Common\Common.RateLimitState.pas"/>
         <DCCReference Include="infra\src\Common\Common.SafeLog.pas"/>
-        <DCCReference Include="infra\src\Db\Db.Interfaces.pas"/>
-        <DCCReference Include="infra\src\Db\Db.Constants.pas"/>
-        <DCCReference Include="infra\src\Db\Db.SqlDialect.pas"/>
-        <DCCReference Include="infra\src\Db\Db.SqlLoader.pas"/>
-        <DCCReference Include="infra\src\Db\Db.Adapters.Registry.pas"/>
-        <DCCReference Include="infra\src\Db\Db.Connection.Pool.pas"/>
-        <DCCReference Include="infra\src\Db\Db.Adapters.FireDAC.pas"/>
-        <DCCReference Include="infra\src\Db\Db.Migrations.pas"/>
+        <DCCReference Include="modules\pascal-db-faa\src\PascalDb.Interfaces.pas"/>
+        <DCCReference Include="modules\pascal-db-faa\src\PascalDb.SqlSources.pas"/>
+        <DCCReference Include="modules\pascal-db-faa\src\PascalDb.SqlLoader.pas"/>
+        <DCCReference Include="modules\pascal-db-faa\src\PascalDb.SqlDialect.pas"/>
+        <DCCReference Include="modules\pascal-db-faa\src\PascalDb.Registry.pas"/>
+        <DCCReference Include="modules\pascal-db-faa\src\PascalDb.Pool.pas"/>
+        <DCCReference Include="modules\pascal-db-faa\src\PascalDb.Adapter.Base.pas"/>
+        <DCCReference Include="modules\pascal-db-faa\src\PascalDb.Adapter.DataSet.pas"/>
+        <DCCReference Include="modules\pascal-db-faa\adapters\firedac\PascalDb.Adapter.FireDAC.pas"/>
+        <DCCReference Include="modules\pascal-db-faa\src\PascalDb.Migrations.pas"/>
         <DCCReference Include="src\Domain\Exemplo\Exemplo.DTOs.pas"/>
         <DCCReference Include="src\Domain\Exemplo\Exemplo.Repository.pas"/>
         <DCCReference Include="src\Domain\Exemplo\Exemplo.Service.pas"/>

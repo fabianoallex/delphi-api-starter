@@ -7,3 +7,6 @@
 [submodule "modules/pascal-common-faa"]
 	path = modules/pascal-common-faa
 	url = https://github.com/fabianoallex/pascal-common-faa.git
+[submodule "modules/pascal-db-faa"]
+	path = modules/pascal-db-faa
+	url = https://github.com/fabianoallex/pascal-db-faa.git

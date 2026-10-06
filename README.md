@@ -38,10 +38,13 @@ git clone --recurse-submodules https://github.com/fabianoallex/delphi-api-starte
 cd meu-projeto
 ```
 
-### Submodules: uma cópia da pascal-common-faa por aplicação
+### Submodules: uma cópia da pascal-common-faa e da pascal-db-faa por aplicação
 
-O projeto tem três submodules: `infra/` (delphi-api-infra-faa), `modules/horse/` e
-`modules/pascal-common-faa/`. Os tipos opcionais (`IOptString`...), o relógio injetável e o
+O projeto tem quatro submodules: `infra/` (delphi-api-infra-faa), `modules/horse/`,
+`modules/pascal-common-faa/` e `modules/pascal-db-faa/`. A camada de banco (`IDBFactory`, pool,
+`TSQLLoader`, migrations, adapter FireDAC) vem da
+[pascal-db-faa](https://github.com/fabianoallex/pascal-db-faa), com a mesma regra descrita abaixo
+para a pascal-common-faa: a cópia é a de `modules/`, nunca a de `infra/external/`. Os tipos opcionais (`IOptString`...), o relógio injetável e o
 cache vêm da [pascal-common-faa](https://github.com/fabianoallex/pascal-common-faa), e a cópia
 dela **é do projeto**, em `modules/pascal-common-faa`. A infra não traz a sua. O clone recursivo
 (necessário por causa do SwagDoc, aninhado em `infra/`) também baixa
@@ -60,7 +63,9 @@ git submodule update --init --recursive infra
 
 O `git add infra` vem antes do `update`; sem ele, o `update` volta o `infra` ao ponteiro antigo.
 Se a nova versão da infra pedir uma pascal-common-faa mais nova, a build para com `F1054` e a
-mensagem diz qual. Nesse caso, avance também `modules/pascal-common-faa`.
+mensagem diz qual. Nesse caso, avance também `modules/pascal-common-faa`. A pascal-db-faa não tem
+checagem de versão em compilação: a versão recomendada fica no README da infra ("Usando como
+submodule").
 
 ---
 
@@ -144,7 +149,7 @@ Substitua a unit do driver Firebird pela do PostgreSQL e ajuste os parâmetros d
 Remova a chamada `SetDllDirectory` (não é necessária para PostgreSQL) e altere o bloco de configuração:
 
 ```pascal
-LConfig := TFDConfig.Create;
+LConfig := TDatabaseConfig.Create;   // LConfig: IDatabaseConfig
 LConfig.ConnectionParams.Add('DriverID=PG');
 LConfig.ConnectionParams.Add('Server='   + TAppConfig.Get('DB_HOST',     'localhost'));
 LConfig.ConnectionParams.Add('Port='     + TAppConfig.Get('DB_PORT',     '5432'));
@@ -230,7 +235,7 @@ SQL_FB_EXEMPLO_FIND_COUNT RCDATA "EXEMPLO.FIND_COUNT.sql"
 ...
 ```
 
-O prefixo (`FB` / `PG`) é definido pelo campo `SQLDirectory` do `TFDConfig` e vira o segmento do meio no nome do resource (`SQL_<DIRECTORY>_<NOME>`). Ambos os `.res` são embutidos no executável; em runtime, apenas os resources do dialeto configurado são acessados.
+O prefixo (`FB` / `PG`) é definido pelo campo `SQLDirectory` do `IDatabaseConfig` (`TDatabaseConfig`) e vira o segmento do meio no nome do resource (`SQL_<DIRECTORY>_<NOME>`). Ambos os `.res` são embutidos no executável; em runtime, apenas os resources do dialeto configurado são acessados.
 
 ### .env
 
@@ -279,11 +284,11 @@ const
 
 var
   LDialect: string;
-  LConfig: TFDConfig;
+  LConfig: IDatabaseConfig;   // interface: as properties só existem nela
   LFactory: IDBFactory;
 begin
   LDialect := TAppConfig.Get('DB_DIALECT', 'Firebird');
-  LConfig  := TFDConfig.Create;
+  LConfig  := TDatabaseConfig.Create;
 
   if SameText(LDialect, 'PostgreSQL') then
   begin
@@ -485,7 +490,8 @@ Crie `sql/MIG.000X.sql` com o DDL da tabela e adicione à constante `MIGRATIONS`
 ├── infra/                   — submodule delphi-api-infra-faa
 ├── modules/
 │   ├── horse/               — submodule Horse (framework HTTP)
-│   └── pascal-common-faa/   — submodule pascal-common-faa (optionals, relógio, cache) — a cópia única do projeto
+│   ├── pascal-common-faa/   — submodule pascal-common-faa (optionals, relógio, cache) — a cópia única do projeto
+│   └── pascal-db-faa/       — submodule pascal-db-faa (camada de banco: PascalDb.*) — idem
 ├── tools/
 │   └── build_sql_res.bat    — recompila todo .rc sob sql/ (chamado pelo Pre-build event do .dproj)
 ├── sql/

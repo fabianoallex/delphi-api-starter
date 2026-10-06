@@ -51,10 +51,11 @@ uses
   Common.Config,
   Common.SafeLog,
   Common.HealthCheck,
-  Db.Interfaces,
-  Db.Adapters.Registry,
-  Db.Adapters.FireDAC,
-  Db.Migrations,
+  PascalDb.Interfaces,
+  PascalDb.Registry,
+  PascalDb.Adapter.Base,
+  PascalDb.Adapter.FireDAC,
+  PascalDb.Migrations,
   // TRouteDoc esta em Swagger.Builder; Swagger.Server so expoe TSwaggerServer
   Swagger.Builder,
   MCP.Server,
@@ -80,13 +81,13 @@ var
 
 procedure ConfigurarBanco;
 var
-  LConfig: TFDConfig;
+  LConfig: IDatabaseConfig; // interface: as properties só existem nela
   LEngine: TDBMigrationEngine;
 begin
   SetDllDirectory(PWideChar(TAppConfig.Get('FB_CLIENT_DIR',
     'C:\Program Files\Firebird\Firebird_2_5\WOW64')));
 
-  LConfig := TFDConfig.Create;
+  LConfig := TDatabaseConfig.Create;
   LConfig.ConnectionParams.Add('DriverID=FB');
   LConfig.ConnectionParams.Add('Database=' + TAppConfig.Get('DB_PATH',     'C:\data\minha-api.fdb'));
   LConfig.ConnectionParams.Add('User_Name=' + TAppConfig.Get('DB_USER',     'SYSDBA'));

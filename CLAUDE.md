@@ -31,6 +31,7 @@ src/Domain/Exemplo/   — domínio de referência: DTOs, Repository, Service, Co
 infra/                — submodule delphi-api-infra-faa
 modules/horse/        — submodule Horse
 modules/pascal-common-faa/ — submodule pascal-common-faa (PascalCommon.Optionals etc.)
+modules/pascal-db-faa/     — submodule pascal-db-faa (camada de banco: PascalDb.*)
 ```
 
 **pascal-common-faa: uma cópia só, a de `modules/`.** `PascalCommon.Optionals`,
@@ -39,6 +40,14 @@ etc. na infra v0.1.0) vêm de `modules/pascal-common-faa/src`, que está no sear
 `.dproj`. `infra/external/pascal-common-faa` existe só para os testes da infra: nunca o
 coloque no search path nem nos `uses ... in '...'`. Guia de atualização:
 `infra/docs/migracao-pascal-common-faa.md`.
+
+**pascal-db-faa: mesma regra, a de `modules/`.** A camada de banco (`IDBFactory`, pool,
+`TSQLLoader`, migrations, `TDBRegistry`, adapter FireDAC) vem de `modules/pascal-db-faa` (`src` e
+`adapters\firedac` no search path), units `PascalDb.*` — a infra não tem mais `src/Db` desde a
+v0.2.0. `infra/external/pascal-db-faa` é só dos testes da infra. A config da factory é
+`TDatabaseConfig` (`PascalDb.Adapter.Base`) numa variável `IDatabaseConfig`. Os `.dproj` precisam
+de `Winapi;...` no `DCC_Namespace` também do Win64 (a pascal-db-faa usa `uses Windows` sem
+namespace). Guia: `infra/docs/migracao-pascal-db-faa.md`.
 
 ---
 
@@ -53,7 +62,7 @@ SQL_<SQLDirectory>_<NomeDoArquivo_pontos_viram_underscores>
 
 Exemplo: `SQLDirectory = 'QUERIES'` + chave `'EXEMPLO.FIND'` → resource `SQL_QUERIES_EXEMPLO_FIND`.
 
-O `SQLDirectory` é configurado em `TFDConfig.SQLDirectory` em `Api.Starter.App.pas`. Cada factory tem o seu próprio loader e portanto o seu próprio namespace.
+O `SQLDirectory` é configurado em `IDatabaseConfig.SQLDirectory` (`TDatabaseConfig`) em `Api.Starter.App.pas`. Cada factory tem o seu próprio loader e portanto o seu próprio namespace.
 
 O `.res` **nunca é editado/recompilado manualmente** — `Api.Starter.dproj` **e**
 `Api.Starter.Svc.dproj` já vêm com um Pre-build event (Build Events da IDE) que chama
@@ -319,7 +328,7 @@ Todas são silenciosas: compilam, e só aparecem com o serviço instalado.
 | cwd de um serviço é `C:\Windows\System32` — `LOG_DIR` relativo cria `System32\logs`, e LocalSystem *tem* permissão de escrever lá (falha silenciosa) | `SetCurrentDir(ExtractFilePath(ParamStr(0)))` como 1ª linha do `OnStart` + `LOG_DIR` absoluto no `.env` |
 | `ReportMemoryLeaksOnShutdown := True` abre diálogo modal na sessão 0 (invisível) e trava o stop | deixar só no `.dpr` do console |
 | Startup longo (bancos + migrations + fila) estoura o timeout do SCM (~30s) e o serviço é marcado como falho | `Bootstrap` numa thread; `Started := True` imediato |
-| Threads `while True` sem `Terminate` (ex.: loggers de snapshot do pool) impedem o processo de sair; `net stop` dá timeout | `TEvent` de parada + `WaitFor` no `Shutdown` — mesmo padrão de `StartIdleSweep`/`StopIdleSweep` em `Db.Connection.Pool.pas` |
+| Threads `while True` sem `Terminate` (ex.: loggers de snapshot do pool) impedem o processo de sair; `net stop` dá timeout | `TEvent` de parada + `WaitFor` no `Shutdown` — mesmo padrão de `StartIdleSweep`/`StopIdleSweep` em `PascalDb.Pool.pas` (pascal-db-faa) |
 | Falha de bootstrap fica invisível — sem console e possivelmente sem `LOG_DIR` válido | `FileLog(['exception', ...])` **+** `TService.LogMessage` (Event Viewer) + `Controller(SERVICE_CONTROL_STOP)` |
 
 Ordem obrigatória no `Shutdown`: **HTTP → consumidores → threads que usam a factory → factories**.
