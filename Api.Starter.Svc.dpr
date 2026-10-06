@@ -47,6 +47,7 @@ uses
   Common.Config          in 'infra\src\Common\Common.Config.pas',
   Common.RateLimitState  in 'infra\src\Common\Common.RateLimitState.pas',
   Common.SafeLog         in 'infra\src\Common\Common.SafeLog.pas',
+  PascalDb.Version         in 'modules\pascal-db-faa\src\PascalDb.Version.pas',
   PascalDb.Interfaces      in 'modules\pascal-db-faa\src\PascalDb.Interfaces.pas',
   PascalDb.SqlSources      in 'modules\pascal-db-faa\src\PascalDb.SqlSources.pas',
   PascalDb.SqlLoader       in 'modules\pascal-db-faa\src\PascalDb.SqlLoader.pas',

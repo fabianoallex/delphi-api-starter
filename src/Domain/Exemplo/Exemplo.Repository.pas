@@ -183,14 +183,6 @@ begin
   end;
 end;
 
-// UPDATE/DELETE ... RETURNING ID: "não achou" é nenhuma linha (Firebird 5,
-// PostgreSQL) OU uma linha com ID nulo (Firebird < 5, que devolve sempre uma
-// linha em DSQL). Ver "Registro inexistente → 404" no CLAUDE.md da infra.
-function ReturnedKey(AResult: IQueryResult): Boolean;
-begin
-  Result := (not AResult.IsEmpty) and (not AResult.NullableIntegers['ID'].IsNull);
-end;
-
 function TExemploRepository.Update(const AId: Integer; ADto: IExemploUpdateDTO): Boolean;
 var
   LScope: IScopeTransaction;
@@ -210,7 +202,7 @@ begin
 
     LQuery.Params.OptStrings['NOME'] := ADto.Nome;
     LQuery.Params.Integers['ID'] := AId;
-    Result := ReturnedKey(LQuery.Open);          // RETURNING: Open, não ExecSql
+    Result := LQuery.ExecSql > 0;                 // linhas afetadas (0 = não achou)
     LScope.Commit;
   except
     LScope.Rollback;
@@ -228,7 +220,7 @@ begin
   try
     LQuery.Sql := FFactory.SqlLoader['EXEMPLO.DELETE'].SQL;
     LQuery.Params.Integers['ID'] := AId;
-    Result := ReturnedKey(LQuery.Open);          // RETURNING: Open, não ExecSql
+    Result := LQuery.ExecSql > 0;                 // linhas afetadas (0 = não achou)
     LScope.Commit;
   except
     LScope.Rollback;
