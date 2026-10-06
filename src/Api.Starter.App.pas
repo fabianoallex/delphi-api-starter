@@ -49,7 +49,7 @@ uses
   Winapi.Windows,
   Horse,
   Common.Config,
-  Common.SafeLog,
+  PascalCommon.SafeLog,
   Common.HealthCheck,
   PascalDb.Interfaces,
   PascalDb.Registry,
@@ -207,7 +207,7 @@ begin
   LPort := TAppConfig.GetInt('SERVER_PORT', 9000);
 
   // SafeWriteln, nunca Writeln: num binário sem console Writeln levantaria
-  // EInOutError (105). SafeWriteln vira no-op ali (ver Common.SafeLog).
+  // EInOutError (105). SafeWriteln vira no-op ali (ver PascalCommon.SafeLog).
   SafeWriteln('API iniciada em http://localhost:' + IntToStr(LPort));
   SafeWriteln('Swagger UI: http://localhost:' + IntToStr(LPort) + '/swagger');
 

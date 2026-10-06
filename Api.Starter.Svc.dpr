@@ -46,7 +46,7 @@ uses
   Common.Pagination      in 'infra\src\Common\Common.Pagination.pas',
   Common.Config          in 'infra\src\Common\Common.Config.pas',
   Common.RateLimitState  in 'infra\src\Common\Common.RateLimitState.pas',
-  Common.SafeLog         in 'infra\src\Common\Common.SafeLog.pas',
+  PascalCommon.SafeLog   in 'modules\pascal-common-faa\src\PascalCommon.SafeLog.pas',
   PascalDb.Version         in 'modules\pascal-db-faa\src\PascalDb.Version.pas',
   PascalDb.Interfaces      in 'modules\pascal-db-faa\src\PascalDb.Interfaces.pas',
   PascalDb.SqlSources      in 'modules\pascal-db-faa\src\PascalDb.SqlSources.pas',

@@ -170,7 +170,7 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <DCCReference Include="infra\src\Common\Common.Pagination.pas"/>
         <DCCReference Include="infra\src\Common\Common.Config.pas"/>
         <DCCReference Include="infra\src\Common\Common.RateLimitState.pas"/>
-        <DCCReference Include="infra\src\Common\Common.SafeLog.pas"/>
+        <DCCReference Include="modules\pascal-common-faa\src\PascalCommon.SafeLog.pas"/>
         <DCCReference Include="modules\pascal-db-faa\src\PascalDb.Version.pas"/>
         <DCCReference Include="modules\pascal-db-faa\src\PascalDb.Interfaces.pas"/>
         <DCCReference Include="modules\pascal-db-faa\src\PascalDb.SqlSources.pas"/>
