@@ -16,8 +16,8 @@ type
     function Find(ADto: IExemploFindDTO): TExemploPageResult;
     function FindById(const AId: Integer): IExemploResponseDTO;
     function Insert(ADto: IExemploInsertDTO): IExemploResponseDTO;
-    procedure Update(const AId: Integer; ADto: IExemploUpdateDTO);
-    procedure Delete(const AId: Integer);
+    function Update(const AId: Integer; ADto: IExemploUpdateDTO): Boolean;  // False = id inexistente
+    function Delete(const AId: Integer): Boolean;                            // False = id inexistente
   end;
 
   TExemploRepository = class(TInterfacedObject, IExemploRepository)
@@ -36,8 +36,8 @@ type
     function Find(ADto: IExemploFindDTO): TExemploPageResult;
     function FindById(const AId: Integer): IExemploResponseDTO;
     function Insert(ADto: IExemploInsertDTO): IExemploResponseDTO;
-    procedure Update(const AId: Integer; ADto: IExemploUpdateDTO);
-    procedure Delete(const AId: Integer);
+    function Update(const AId: Integer; ADto: IExemploUpdateDTO): Boolean;  // False = id inexistente
+    function Delete(const AId: Integer): Boolean;                            // False = id inexistente
   end;
 
 implementation
@@ -81,15 +81,14 @@ var
   LFindSql, LCountSql: TSQLResult;
   LOrderByExpr: string;
 begin
-  if Assigned(ADto) then
-    LParams := TPageParams.From(ADto.Page, ADto.Limit)
-  else
-    LParams := TPageParams.From(nil, nil);
+  if not Assigned(ADto) then                     // único Assigned legítimo: o DTO inteiro
+    raise Exception.Create('[ADto: IExemploFindDTO] não pode ser nil');
 
-  LHasSearch := Assigned(ADto) and Assigned(ADto.Search) and ADto.Search.HasValue and (Trim(ADto.Search.Value) <> '');
+  LParams    := TPageParams.From(ADto.Page, ADto.Limit);
+  LHasSearch := ADto.Search.HasValue and (Trim(ADto.Search.Value) <> '');
 
   LOrderByExpr := '';
-  if Assigned(ADto) and Assigned(ADto.OrderBy) and ADto.OrderBy.HasValue then
+  if ADto.OrderBy.HasValue then
     LOrderByExpr := ADto.OrderBy.Value;
 
   LFindSql := FFactory.SqlLoader['EXEMPLO.FIND']
@@ -184,27 +183,34 @@ begin
   end;
 end;
 
-procedure TExemploRepository.Update(const AId: Integer; ADto: IExemploUpdateDTO);
+// UPDATE/DELETE ... RETURNING ID: "não achou" é nenhuma linha (Firebird 5,
+// PostgreSQL) OU uma linha com ID nulo (Firebird < 5, que devolve sempre uma
+// linha em DSQL). Ver "Registro inexistente → 404" no CLAUDE.md da infra.
+function ReturnedKey(AResult: IQueryResult): Boolean;
+begin
+  Result := (not AResult.IsEmpty) and (not AResult.NullableIntegers['ID'].IsNull);
+end;
+
+function TExemploRepository.Update(const AId: Integer; ADto: IExemploUpdateDTO): Boolean;
 var
   LScope: IScopeTransaction;
   LQuery: IQuery;
-  LHasNome: Boolean;
 begin
-  LHasNome := Assigned(ADto.Nome) and ADto.Nome.HasValue;
+  if not Assigned(ADto) then                     // único Assigned legítimo: o DTO inteiro
+    raise Exception.Create('[ADto: IExemploUpdateDTO] não pode ser nil');
 
-  if not LHasNome then
-    Exit;
-
+  // Roda mesmo sem campo para mudar (o SET tem "ID = ID" fora das tags):
+  // assim PATCH {} num id inexistente também responde 404.
   LScope := FFactory.GetPool.AcquireQuery(LQuery);
   LScope.StartTransaction;
   try
     LQuery.Sql := FFactory.SqlLoader['EXEMPLO.UPDATE']
-      .ProcessTag('NOME', LHasNome)
+      .ProcessTag('NOME', ADto.Nome.HasValue)
       .SQL;
 
-    if LHasNome then LQuery.Params.OptStrings['NOME'] := ADto.Nome;
+    LQuery.Params.OptStrings['NOME'] := ADto.Nome;
     LQuery.Params.Integers['ID'] := AId;
-    LQuery.ExecSql;
+    Result := ReturnedKey(LQuery.Open);          // RETURNING: Open, não ExecSql
     LScope.Commit;
   except
     LScope.Rollback;
@@ -212,7 +218,7 @@ begin
   end;
 end;
 
-procedure TExemploRepository.Delete(const AId: Integer);
+function TExemploRepository.Delete(const AId: Integer): Boolean;
 var
   LScope: IScopeTransaction;
   LQuery: IQuery;
@@ -222,7 +228,7 @@ begin
   try
     LQuery.Sql := FFactory.SqlLoader['EXEMPLO.DELETE'].SQL;
     LQuery.Params.Integers['ID'] := AId;
-    LQuery.ExecSql;
+    Result := ReturnedKey(LQuery.Open);          // RETURNING: Open, não ExecSql
     LScope.Commit;
   except
     LScope.Rollback;

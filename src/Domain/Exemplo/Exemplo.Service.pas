@@ -52,6 +52,8 @@ begin
   if AId <= 0 then
     raise EValidationException.Create('ID inválido.');
   Result := FRepository.FindById(AId);
+  if not Assigned(Result) then
+    raise ENotFoundException.Create('Exemplo não encontrado.');
 end;
 
 function TExemploService.Insert(ADto: IExemploInsertDTO): IExemploResponseDTO;
@@ -63,14 +65,17 @@ end;
 
 procedure TExemploService.Update(const AId: Integer; ADto: IExemploUpdateDTO);
 begin
-  if Assigned(ADto.Nome) and ADto.Nome.HasValue and (Trim(ADto.Nome.Value) = '') then
+  // sem Assigned no campo: o getter do DTO já devolve TOptionals.Safe
+  if ADto.Nome.HasValue and (Trim(ADto.Nome.Value) = '') then
     raise EValidationException.Create('Nome não pode ser vazio.');
-  FRepository.Update(AId, ADto);
+  if not FRepository.Update(AId, ADto) then
+    raise ENotFoundException.Create('Exemplo não encontrado.');
 end;
 
 procedure TExemploService.Delete(const AId: Integer);
 begin
-  FRepository.Delete(AId);
+  if not FRepository.Delete(AId) then
+    raise ENotFoundException.Create('Exemplo não encontrado.');
 end;
 
 end.

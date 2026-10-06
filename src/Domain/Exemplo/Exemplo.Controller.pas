@@ -77,12 +77,8 @@ begin
         LItem: IExemploResponseDTO;
       begin
         LId := StrToIntDef(Req.Params['id'], 0);
+        // id inexistente: o Service lança ENotFoundException → 404 em JSON
         LItem := AService.FindById(LId);
-        if not Assigned(LItem) then
-        begin
-          Res.Status(404).Send('Exemplo não encontrado.');
-          Exit;
-        end;
         Res.ContentType('application/json; charset=utf-8')
            .Send(TJsonMapper.ToJson<IExemploResponseDTO>(LItem));
       end);
