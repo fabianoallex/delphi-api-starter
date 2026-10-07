@@ -27,16 +27,28 @@ Inclui um domínio `Exemplo` funcional (CRUD completo com paginação, busca, or
 3. Clone com submodules:
 
 ```bash
-git clone --recurse-submodules https://github.com/seu-usuario/meu-projeto
+git clone https://github.com/seu-usuario/meu-projeto
 cd meu-projeto
+git config core.longpaths true
+git submodule update --init
+git -C infra submodule update --init modules/swag-doc
 ```
 
 ### Clone direto
 
 ```bash
-git clone --recurse-submodules https://github.com/fabianoallex/delphi-api-starter meu-projeto
+git clone https://github.com/fabianoallex/delphi-api-starter meu-projeto
 cd meu-projeto
+git config core.longpaths true
+git submodule update --init
+git -C infra submodule update --init modules/swag-doc
 ```
+
+**Não use `--recurse-submodules`/`--recursive`.** A infra e as libs `pascal-*-faa` têm submodules
+em `external/` que são só para os testes delas, aninhados até 3 níveis
+(`infra/external/pascal-db-faa/external/pascal-common-faa/external/pascal-jsonmapper-faa`). O
+recursivo baixa todos e, num caminho longo (pasta de rede, `\\servidor\...`), quebra com
+`Filename too long`. Da infra, o projeto só precisa do `modules/swag-doc` (SwagDoc).
 
 ### Submodules: uma cópia da pascal-common-faa e da pascal-db-faa por aplicação
 
@@ -46,11 +58,11 @@ O projeto tem quatro submodules: `infra/` (delphi-api-infra-faa), `modules/horse
 [pascal-db-faa](https://github.com/fabianoallex/pascal-db-faa), com a mesma regra descrita abaixo
 para a pascal-common-faa: a cópia é a de `modules/`, nunca a de `infra/external/`. Os tipos opcionais (`IOptString`...), o relógio injetável e o
 cache vêm da [pascal-common-faa](https://github.com/fabianoallex/pascal-common-faa), e a cópia
-dela **é do projeto**, em `modules/pascal-common-faa`. A infra não traz a sua. O clone recursivo
-(necessário por causa do SwagDoc, aninhado em `infra/`) também baixa
-`infra/external/pascal-common-faa`, mas essa pasta é só dos testes da infra e **nunca** entra no
-search path. Assim, quando o projeto passar a usar outra lib que dependa da pascal-common-faa
-(pascal-db-faa, pascal-amqp-faa...), todas usam a mesma cópia, a de `modules/`.
+dela **é do projeto**, em `modules/pascal-common-faa`. A infra não traz a sua. As pastas
+`infra/external/pascal-common-faa` e `infra/external/pascal-db-faa` são só dos testes da infra: não
+são baixadas (ver acima) e **nunca** entram no search path. Assim, quando o projeto passar a usar
+outra lib que dependa da pascal-common-faa (pascal-amqp-faa, pascal-pipes-faa...), todas usam a
+mesma cópia, a de `modules/`.
 
 Para atualizar a infra (da raiz do projeto, nunca de dentro de `infra/`):
 
@@ -58,14 +70,14 @@ Para atualizar a infra (da raiz do projeto, nunca de dentro de `infra/`):
 git -C infra fetch --tags
 git -C infra checkout <tag>
 git add infra
-git submodule update --init --recursive infra
+git submodule update --init infra
+git -C infra submodule update --init modules/swag-doc
 ```
 
 O `git add infra` vem antes do `update`; sem ele, o `update` volta o `infra` ao ponteiro antigo.
-Se a nova versão da infra pedir uma pascal-common-faa mais nova, a build para com `F1054` e a
-mensagem diz qual. Nesse caso, avance também `modules/pascal-common-faa`. A pascal-db-faa não tem
-checagem de versão em compilação: a versão recomendada fica no README da infra ("Usando como
-submodule").
+Se a nova versão da infra pedir uma pascal-common-faa ou uma pascal-db-faa mais nova, a build para
+com `F1054` e a mensagem diz qual. Nesse caso, avance também o submodule correspondente em
+`modules/` (`git -C modules/<lib> checkout <tag>` + `git add modules/<lib>`).
 
 ---
 
